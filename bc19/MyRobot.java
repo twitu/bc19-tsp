@@ -199,20 +199,35 @@ public class MyRobot extends BCAbstractRobot {
 
         // Variables
         ArrayList<Robot> adjRobots = new ArrayList<>();
-        boolean adjChurch, adjCrusader, visChurch;
+        boolean adjChurch, adjCrusader, adjCastle, visChurch;
         Point emptyadj;
+
+        // Initialization
+        if (me.turn == 1) {
+            
+            // Get adjacent bots and look for castle. If castle found mine karbo by default.
+            visRobots = getVisibleRobots();
+            fuelMiner = false;
+            for (Robot bot : visRobots) {
+                if ((Math.abs(bot.x - me.x) <= 1) && (Math.abs(bot.y - me.y) <= 1)) {
+                    if (bot.unit == SPECS.CASTLE) {
+                        fuelMiner = true;
+                    }
+                }
+            }
+        }
 
         // Am I carrying max capacity resources?
         if ((me.karbonite == 20) || (me.fuel == 100)) {
 
-            // Get adjacentBots
+            // Get adjacent bots
             visRobots = getVisibleRobots();
             adjChurch = false;
             adjCrusader = false;
             for (Robot bot : visRobots) {
-                if ((Math.abs(bot.x) <= 1) && (Math.abs(bot.y) <= 1)) {
+                if ((Math.abs(bot.x - me.x) <= 1) && (Math.abs(bot.y - me.y) <= 1)) {
                     adjRobots.add(bot);
-                    if (bot.unit == SPECS.CHURCH) {
+                    if ((bot.unit == SPECS.CHURCH) || (bot.unit == SPECS.CASTLE)) {
                         adjChurch = true;
                     } else if(bot.unit == SPECS.CRUSADER) {
                         adjCrusader = true;
@@ -220,10 +235,10 @@ public class MyRobot extends BCAbstractRobot {
                 }
             }
                 
-            // Church nearby?
+            // Church nearby? (Or castle)
             if (adjChurch) {
                 for (Robot bot : adjRobots) {
-                    if ((bot.unit == SPECS.CHURCH) && (bot.team == me.team)) {
+                    if (((bot.unit == SPECS.CHURCH) || (bot.unit == SPECS.CASTLE)) && (bot.team == me.team)) {
                         return give(bot.x, bot.y, me.karbonite, me. fuel);
                     }
                 }
@@ -257,7 +272,7 @@ public class MyRobot extends BCAbstractRobot {
             visRobots = getVisibleRobots();
             visChurch = false;                
             for (Robot bot : visRobots) {
-                if (bot.unit == SPECS.CHURCH) {
+                if ((bot.unit == SPECS.CHURCH) || (bot.unit == SPECS.CASTLE)) {
                     visChurch = true;
                 }
             }
