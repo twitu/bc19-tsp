@@ -80,7 +80,7 @@ public class MyRobot extends BCAbstractRobot {
     boolean[][] passable_map;
     boolean[][] fuel_map;
     boolean[][] karbo_map;
-    Point myLoc;
+    boolean fuelMiner;
     LinkedList<Point> fuel_pos = new LinkedList<>();
     LinkedList<Point> karbo_pos = new LinkedList<>();
 
@@ -280,12 +280,11 @@ public class MyRobot extends BCAbstractRobot {
         } else {
 
             // TODO: decide whether to mine karbo or fuel based on castle talk and set default
-            LinkedList<Point> choose_fuel = new LinkedList<>();
-            boolean fuel = true;
-            for (Point p: (fuel ? fuel_pos : karbo_pos)) {
-                choose_fuel.add(p);
+            LinkedList<Point> depot_list = new LinkedList<>();
+            for (Point p: (fuelMiner ? fuel_pos : karbo_pos)) {
+                depot_list.add(p);
             }
-            Point next = findPath(me.x, me.y, copyMap(this.passable_map), true, choose_fuel);
+            Point next = findPath(me.x, me.y, copyMap(this.passable_map), true, depot_list);
             return move(next.x - me.x, next.y - me.y);
         }
             
@@ -330,9 +329,6 @@ public class MyRobot extends BCAbstractRobot {
                 }
             }
         }
-
-        // Point object for location of selected bot
-        myLoc = new Point(me.x, me.y);
 
         // Pilgrim AI
         if (me.unit == SPECS.PILGRIM) {
