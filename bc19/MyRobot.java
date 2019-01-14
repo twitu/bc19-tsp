@@ -5,8 +5,6 @@ import java.util.LinkedList;
 import java.util.Arrays.*;
 import java.util.Arrays;
 
-import java.awt.Point;
-
 public class MyRobot extends BCAbstractRobot {
 
     //*** Directions ***/
@@ -91,17 +89,16 @@ public class MyRobot extends BCAbstractRobot {
     public Point findEmptyAdj(Robot me) {
         visRobotMap = getVisibleRobotMap();
         for (Point p: MyRobot.adj_directions) {
-            if (passable_map[me.x + p.x][me.y + p.y] && (visRobotMap[me.x + p.x][me.y + p.y] == 0)) {
+            if (passable_map[me.y + p.y][me.x + p.x] && (visRobotMap[me.y + p.y][me.x + p.x] == 0)) {
                 return new Point(p.x, p.y);
             }
         }
-
         return null;
     }
 
-    // Find next point to move to given source, a copy of map, movement range and possible destinations
+    // Find next point to move to given source, a copy of map, movement speed and possible destinations
     public Point findPath(int x, int y, boolean[][] map, boolean r_four, LinkedList<Point> src) {
-        Point current, next = new Point();
+        Point current, next = new Point(x, y);
         Point[] directions;
 
         if (r_four) {
@@ -118,8 +115,8 @@ public class MyRobot extends BCAbstractRobot {
                 if (next.x == x && next.y == y) {
                     return next;
                 } else {
-                    if (map[next.x][next.y] == true) {
-                        map[next.x][next.y] = false;
+                    if (map[next.y][next.x] == true) {
+                        map[next.y][next.x] = false;
                         src.add(next);
                     } 
                 }
@@ -129,21 +126,23 @@ public class MyRobot extends BCAbstractRobot {
         return null;
     }
 
+    // Deliver all resources to an adjacent unit of given type. Returns null if unit of given type non adjacent
     public Action ifAdjGive(Robot me, int unit) {
-        for (Point p: adj_directions) {
-            if (visRobotMap[p.x + me.x][p.y + me.y] > 0) {
-                Robot check = getRobot(visRobotMap[p.x + me.x][p.y + me.y]);
+        for (Point p: MyRobot.adj_directions) {
+            if (visRobotMap[p.y + me.y][p.x + me.x] > 0) {
+                Robot check = getRobot(visRobotMap[p.y + me.y][p.x + me.x]);
                 if (check.unit == unit && check.team == me.team) {
                     return give(p.x, p.y, me.karbonite, me.fuel);
                 }
             }
         }
-
         return null;
     }
 
+    // Get as close as possible to nearest church or castle
     public Action homeDelivery(Robot me) {
         LinkedList<Point> dest;
+        Point next;
         for (Point p: church_pos) {
             dest.add(p);
         }
@@ -152,11 +151,15 @@ public class MyRobot extends BCAbstractRobot {
             dest.add(p);
         }
 
-        Point next = findPath(me.x, me.y, copyMap(passable_map), true, dest);
+        if (me.unit == SPECS.CRUSADER) {
+            next = findPath(me.x, me.y, copyMap(passable_map), false, dest);
+        } else {
+            next = findPath(me.x, me.y, copyMap(passable_map), true, dest);
+        }
         visRobotMap = getVisibleRobotMap();
-        // check if next point is exactly on destination
-        if (visRobotMap[next.x][next.y] > 0) {
-            Robot check = getRobot(visRobotMap[next.x][next.y]);
+        // Check if next point is exactly on destination
+        if (visRobotMap[next.y][next.x] > 0) {
+            Robot check = getRobot(visRobotMap[next.y][next.x]);
             if (check.team == me.team && (check.unit == SPECS.CASTLE || check.unit == SPECS.CHURCH)) {
                 if (next.x - me.x == 0){
                     if (next.y > me.y) {
@@ -236,16 +239,19 @@ public class MyRobot extends BCAbstractRobot {
             // Self deliver
             } else {
 
-                Action A = ifAdjGive(me);
-                if (A == null) {
+                Action A1 = ifAdjGive(me, SPECS.CHURCH);
+                Action A2 = ifAdjGive(me, SPECS.CASTLE);
+                if ((A1 == null) && (A2 == null)) {
                     return homeDelivery(me);                    
+                } else if (A1 != null){
+                    return A1;
                 } else {
-                    return A;
+                    return A2;
                 }
             }
         
         // Check if on depot then mine
-        } else if (karbo_map[me.x][me.y]) {
+        } else if (karbo_map[me.y][me.x]) {
 
             // Get visible bot types and look for church
             visRobots = getVisibleRobots();
@@ -276,7 +282,7 @@ public class MyRobot extends BCAbstractRobot {
             // TODO: decide whether to mine karbo or fuel based on castle talk and set default
             LinkedList<Point> choose_fuel = new LinkedList<>();
             boolean fuel = true;
-            for (Point p: fuel_pos) {
+            for (Point p: (fuel ? fuel_pos : karbo_pos)) {
                 choose_fuel.add(p);
             }
             Point next = findPath(me.x, me.y, copyMap(this.passable_map), true, choose_fuel);
@@ -293,9 +299,9 @@ public class MyRobot extends BCAbstractRobot {
             passable_map = getPassableMap();
             fuel_map = getFuelMap();
             karbo_map = getKarboniteMap();
-
+            
             for (int i = 0; i < fuel_map.length; i++) {
-                for (int j = 0; j < fuel_map[i].length; i++) {
+                for (int j = 0; j < fuel_map[i].length; j++) {
                     if (fuel_map[i][j]) {
                         fuel_pos.add(new Point(i, j));
                     }
@@ -303,7 +309,7 @@ public class MyRobot extends BCAbstractRobot {
             }
 
             for (int i = 0; i < karbo_map.length; i++) {
-                for (int j = 0; j < karbo_map[i].length; i++) {
+                for (int j = 0; j < karbo_map[i].length; j++) {
                     if (karbo_map[i][j]) {
                         karbo_pos.add(new Point(i, j));
                     }
@@ -316,7 +322,7 @@ public class MyRobot extends BCAbstractRobot {
             if (me.turn == 1) {
                 // for first turn add position to list
                 castle_pos.add(new Point(me.x, me.y));
-                emptyadj = findEmptyAdj(me);
+                Point emptyadj = findEmptyAdj(me);
                 if (emptyadj == null) {
                     return null;
                 } else {
@@ -343,13 +349,13 @@ public class MyRobot extends BCAbstractRobot {
 
         // Crusader AI
         if (me.unit == SPECS.CRUSADER) {
-            // if carrying resource deliver to nearest church and castle
+            // If carrying resource deliver to nearest church and castle
             // TODO: refine algo to fill to max capacity before going to deliver
             if (me.fuel > 0 || me.karbonite > 0) {
                 int[][] visRobMap = getVisibleRobotMap();
-                for (Point p: adj_directions) {
-                    if (visRobMap[me.x+p.x][me.y+p.y] > 0) {
-                        Robot check = getRobot(visRobMap[me.x+p.x][me.y+p.y]);
+                for (Point p: MyRobot.adj_directions) {
+                    if (visRobMap[me.y + p.y][me.x + p.x] > 0) {
+                        Robot check = getRobot(visRobMap[me.y + p.y][me.x + p.x]);
                         if (check.team == me.team && (check.unit == SPECS.CHURCH || check.unit == SPECS.CASTLE)) {
                             return give(p.x, p.y, me.karbonite, me.fuel);
                         }
@@ -360,7 +366,7 @@ public class MyRobot extends BCAbstractRobot {
                 Robot[] visRobots = getVisibleRobots();
 
                 for (Robot r: visRobots) {
-
+                    return null;
                 }
             }
         }
