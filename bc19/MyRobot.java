@@ -6,7 +6,7 @@ import java.util.Arrays.*;
 import java.util.Arrays;
 import java.lang.*;
 
-public class MyRobot extends BCAbstractRobot {
+public class ShadowBot extends BCAbstractRobot {
 
     //*** Directions ***/
     // Adjacent Squares
@@ -73,25 +73,63 @@ public class MyRobot extends BCAbstractRobot {
         new Point(-2, -2)
     };
 
+    //*** Troop resource requirements */
+    // karbonite, fuel
+    public static int[][] requirements = {
+        {-1, -1},
+        {50, 200},
+        {10, 50},
+        {20, 50},
+        {25, 50},
+        {30, 50}
+    };
+
+    // attack troops pipeline
+    public int[] tiger_squad = {
+        SPECS.CRUSADER,
+        SPECS.CRUSADER,
+        SPECS.PROPHET,
+        SPECS.PROPHET,
+        SPECS.PREACHER
+    };
+
     //*** Private Variables ***/
-    ArrayList<Point> church_pos = new ArrayList<>();
-    ArrayList<Point> castle_pos = new ArrayList<>();
-    Robot[] visRobots;
-    int[][] visRobotMap;
+    // Map info (Constant)
     boolean[][] passable_map;
     boolean[][] fuel_map;
     boolean[][] karbo_map;
-    boolean fuelMiner, castleGaurd;
+    ResourceData clusterList;
     LinkedList<Point> fuel_pos = new LinkedList<>();
     LinkedList<Point> karbo_pos = new LinkedList<>();
     int map_length;
 
+    // Personal identification
+    boolean castleGaurd;    // Am I gaurding a castle?
+    int baseID;             // ID of base cluster
+    Point home, myloc;
+    
+    // Visibility
+    Robot[] visRobots;
+    int[][] visRobotMap;
+    
+    // Other Variables
+    ArrayList<Point> church_pos = new ArrayList<>();
+    ArrayList<Robot> castle_pos = new ArrayList<>();
+    ArrayList<DepotCluster> myclusters;
+    Encoder encoder;
+    
+
     //*** Commonly Used Functions ***/
+    // find map symmetry
+    public Boolean map_sym(){
+        return true;
+    }                
+
     // Find empty square adjacent to a given unit.
     public Point findEmptyAdj(Robot me, boolean preferDepot) {
         Point to_return = null;
         if (preferDepot) {
-            for (Point p: MyRobot.adj_directions) {
+            for (Point p: ShadowBot.adj_directions) {
                 if (passable_map[me.y + p.y][me.x + p.x] && visRobotMap[me.y + p.y][me.x + p.x] == 0) {
                     to_return = p;
                     if (fuel_map[me.y + p.y][me.x + p.x] || karbo_map[me.y + p.y][me.x + p.x]) {
@@ -100,7 +138,7 @@ public class MyRobot extends BCAbstractRobot {
                 }
             }
         } else {
-            for (Point p: MyRobot.adj_directions) {
+            for (Point p: ShadowBot.adj_directions) {
                 if (passable_map[me.y + p.y][me.x + p.x] && visRobotMap[me.y + p.y][me.x + p.x] == 0) {
                     to_return = p;
                 }
@@ -110,17 +148,47 @@ public class MyRobot extends BCAbstractRobot {
         return to_return;
     }
 
-    // Update castle_pos and church_pos
-    public void scanCastleChurch(){
-        for(int i = 0 ; i < visRobots.length;i++ ){
-            if( visRobots[i].team == me.team){                      //check if ally
-                if(visRobots[i].unit == SPECS.CASTLE ){             //castle
-                    castle_pos.add(new Point(visRobots[i].x, visRobots[i].y));
-                }else if(visRobots[i].unit == SPECS.CHURCH) {       //church
-                    church_pos.add(new Point(visRobots[i].x, visRobots[i].y));                                                                                                                                                                       
+    public Point findEmptyAdj(Point dest, boolean preferDepot) {
+        Point to_return = null;
+        if (preferDepot) {
+            for (Point p: ShadowBot.adj_directions) {
+                if (passable_map[dest.y + p.y][dest.x + p.x] && visRobotMap[dest.y + p.y][dest.x + p.x] == 0) {
+                    to_return = p;
+                    if (fuel_map[dest.y + p.y][dest.x + p.x] || karbo_map[dest.y + p.y][dest.x + p.x]) {
+                        return to_return;
+                    }
+                }
+            }
+        } else {
+            for (Point p: ShadowBot.adj_directions) {
+                if (passable_map[dest.y + p.y][dest.x + p.x] && visRobotMap[dest.y + p.y][dest.x + p.x] == 0) {
+                    to_return = p;
                 }
             }
         }
+
+        return to_return;
+    }
+
+    public boolean isAdj(Point a, Point b) {
+        for (Point p: adj_directions) {
+            if ((a.x + p.x == b.x) && (a.y + p.y == b.y)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // TODO consider cases where adjacent is blocked
+    public Point findEmptyNextAdj(Point dest, Point src, Point[] moves) {
+        for (Point p: moves) {
+            Point temp = new Point(src.x + p.x, src.y + p.y);
+            if (isAdj(temp, dest)) {
+                return temp;
+            }
+        }
+        return null;
     }
 
     // Find next point to move to given source, a copy of map, movement speed and possible destinations
@@ -129,9 +197,9 @@ public class MyRobot extends BCAbstractRobot {
         Point[] directions;
 
         if (r_four) {
-            directions = MyRobot.four_directions;
+            directions = ShadowBot.four_directions;
         } else {
-            directions = MyRobot.nine_directions;
+            directions = ShadowBot.nine_directions;
         }
 
         StringBuilder logging = new StringBuilder("finding next point for path x: " + x + " y: " + y);
@@ -158,7 +226,7 @@ public class MyRobot extends BCAbstractRobot {
 
     // Deliver all resources to an adjacent unit of given type. Returns null if unit of given type non adjacent
     public Action ifAdjGive(Robot me, int unit) {
-        for (Point p: MyRobot.adj_directions) {
+        for (Point p: ShadowBot.adj_directions) {
             if (visRobotMap[p.y + me.y][p.x + me.x] > 0) {
                 Robot check = getRobot(visRobotMap[p.y + me.y][p.x + me.x]);
                 if (check.unit == unit && check.team == me.team) {
@@ -177,9 +245,9 @@ public class MyRobot extends BCAbstractRobot {
             dest.add(p);
         }
 
-        for (Point p: castle_pos) {
-            dest.add(p);
-        }
+        // for (Point p: castle_pos) {
+        //     dest.add(p);
+        // }
 
         if (me.unit == SPECS.CRUSADER) {
             next = findPath(me.x, me.y, copyMap(passable_map), false, dest);
@@ -224,6 +292,7 @@ public class MyRobot extends BCAbstractRobot {
     }
 
     //*** Bot AI ***/
+    // Pilgrim AI                
     public Action pilgrimAI(Robot me) {
 
         // Variables
@@ -233,73 +302,39 @@ public class MyRobot extends BCAbstractRobot {
 
         // Primary Initialization
         if (me.turn == 1) {
-            
-            // Get adjacent bots and look for castle. If castle found mine karbo by default.
-            visRobots = getVisibleRobots();
-            fuelMiner = false;
-            for (Robot bot : visRobots) {
-                if ((Math.abs(bot.x - me.x) <= 1) && (Math.abs(bot.y - me.y) <= 1)) {
-                    if (bot.unit == SPECS.CASTLE) {
-                        fuelMiner = true;
+            for (Point p: adj_directions) {
+                if (visRobotMap[me.x + p.x][me.y + p.y] > 0) {
+                    Robot bot = getRobot(visRobotMap[me.x + p.x][me.y + p.y]);
+                    if (bot.unit == SPECS.CHURCH) {
+                        home = new Point(bot.x, bot.y);
                     }
                 }
             }
+            baseID = -1;
         }                           
 
         // Am I carrying max capacity resources?
         if ((me.karbonite == 20) || (me.fuel == 100)) {
 
-            // Get adjacent bots
-            log("capacity full going to deliver");
-            visRobots = getVisibleRobots();
-            adjChurch = false;
-            adjCrusader = false;
-            for (Robot bot : visRobots) {
-                if ((Math.abs(bot.x - me.x) <= 1) && (Math.abs(bot.y - me.y) <= 1)) {
-                    adjRobots.add(bot);
-                    if ((bot.unit == SPECS.CHURCH) || (bot.unit == SPECS.CASTLE)) {
-                        adjChurch = true;
-                    } else if(bot.unit == SPECS.CRUSADER) {
-                        adjCrusader = true;
-                    }
-                }
-            }
-                
-            // Church nearby? (Or castle)
-            if (adjChurch) {
-                log("found adjacent building");
-                for (Robot bot : adjRobots) {
-                    if (((bot.unit == SPECS.CHURCH) || (bot.unit == SPECS.CASTLE)) && (bot.team == me.team)) {
-                        return give(bot.x - me.x, bot.y - me.y, me.karbonite, me.fuel);
-                    }
-                }
-
-            // Crusader then?
-            } else if (adjCrusader) {
-                log("found adjacent crusader");
-                for (Robot bot : adjRobots) {
-                    if ((bot.unit == SPECS.CRUSADER) && (bot.team == me.team)) {
-                        return give(bot.x - me.x, bot.y - me.y, me.karbonite, me.fuel);
-                    }
-                }
-                
-            // Self deliver
+            if (isAdj(myloc, home)) {
+                return give(home.x - myloc.x, home.y - myloc.y, me.karbonite, me.fuel);
             } else {
-
-                Action A1 = ifAdjGive(me, SPECS.CHURCH);
-                Action A2 = ifAdjGive(me, SPECS.CASTLE);
-                if ((A1 == null) && (A2 == null)) {
-                    return homeDelivery(me);                    
-                } else if (A1 != null){
-                    return A1;
-                } else {
-                    return A2;
+                LinkedList<Point> homePoint = new LinkedList<>();
+                homePoint.add(home);
+                Point next = findPath(me.x, me.y, passable_map, true, homePoint);
+                
+                if (next.x == home.x && next.y == home.y) {
+                    next = findEmptyNextAdj(next, myloc, four_directions);
                 }
+                return move(next.x - me.x, next.y - me.y);
             }
         
-        // Check if on depot then mine
-        } else if (karbo_map[me.y][me.x] || fuel_map[me.y][me.x]) {
+        // Check if on base depot then mine
+        } else if (karbo_map[me.y][me.x] || fuel_map[me.y][me.x]){
             log("on a depot");
+
+            // Adjust base ID
+            baseID = clusterList.getID(me.x, me.y);            
 
             // Get visible bot types and look for church
             visRobots = getVisibleRobots();
@@ -329,22 +364,29 @@ public class MyRobot extends BCAbstractRobot {
         // If not, move to a depot
         } else {
 
-            // TODO: decide whether to mine karbo or fuel based on castle talk and set default
-            LinkedList<Point> depot_list = new LinkedList<>();
-            for (Point p: (fuelMiner ? fuel_pos : karbo_pos)) {
-                if (visRobotMap[p.y][p.x] <= 0) {
-                    depot_list.add(p);
+            if ((baseID == -1) && (me.signal % 16 == 1)) {
+                baseID = me.signal/16;                                                                                
+            }
+            Point P = clusterList.getLocation(baseID);
+            if (isAdj(myloc, P)) {
+                return buildUnit(SPECS.CHURCH, P.x, P.y);
+            } else {
+                LinkedList<Point> dest = new LinkedList<>();
+                dest.add(clusterList.getLocation(baseID));                                    
+                Point next = findPath(me.x, me.y, copyMap(this.passable_map), true, dest);
+                Point endPoint = clusterList.getLocation(baseID);
+                if ((next == null) || (baseID == -1)) {
+                    log("did not find valid next path");
+                    return null;
+                } else {
+                    if ((next.x == endPoint.x) &&(next.y == endPoint.y)){
+                        next = findEmptyNextAdj(next, myloc, four_directions);
+                    }
+                    log("found next step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
+                    return move(next.x - me.x, next.y - me.y);
                 }
             }
-            Point next = findPath(me.x, me.y, copyMap(this.passable_map), true, depot_list);
-            if (next == null) {
-                log("did not find valid next path");
-            } else {
-                log("found next step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
-                return move(next.x - me.x, next.y - me.y);
-            }
         }
-            
     }
 
     // Crusader AI
@@ -370,7 +412,7 @@ public class MyRobot extends BCAbstractRobot {
         if (me.fuel == 100 || me.karbonite == 20) {
                 
             // If church or castle nearby, give to it.
-            for (Point p: MyRobot.adj_directions) {
+            for (Point p: ShadowBot.adj_directions) {
                 if (visRobotMap[me.y + p.y][me.x + p.x] > 0) {
                     check = getRobot(visRobotMap[me.y + p.y][me.x + p.x]);
                     if (check.team == me.team && (check.unit == SPECS.CHURCH || check.unit == SPECS.CASTLE)) {
@@ -393,6 +435,172 @@ public class MyRobot extends BCAbstractRobot {
         }
     }
 
+    // Castle AI
+    public Action castleAI(Robot me) {
+        // Castle AI
+        visRobots = getVisibleRobots();
+        if (me.turn == 1) {
+            // add all castles to castle list
+            for (Robot bot: visRobots) {
+                if (bot.unit == SPECS.CASTLE && bot.id != me.id) {
+                    castle_pos.add(bot);
+                }
+            }
+            
+            // find depot clusters
+            clusterList = new ResourceData(fuel_map, karbo_map);
+            myclusters = new ArrayList<>();
+        }
+
+        DepotCluster closest = null;
+        int min_distance = Integer.MAX_VALUE;
+        if (clusterList.count != 0) {
+            for (DepotCluster cluster: clusterList.resourceList) {
+                for (Robot bot: castle_pos) {
+                    if (bot.castle_talk == cluster.ClusterID) {
+                        cluster.castle_id = bot.id;
+                        clusterList.count--;                                                                        
+                    }
+                }
+
+                // if not already allocated check cluster for distance                                
+                if (cluster.castle_id == -1)  {
+                    int dist = (cluster.locX-me.x)*(cluster.locX-me.x) + (cluster.locX-me.y)*(cluster.locY-me.y);
+                    if (dist < min_distance) {
+                        min_distance = dist;
+                        closest = cluster;
+                    }                                                                                
+                }
+            }
+
+            // found closest unclaimed cluster
+            // inform others create a new pilgrim and tell it where to go
+            if (closest != null) {
+                clusterList.count--;
+                closest.castle_id = me.id;
+                myclusters.add(closest);
+                castleTalk(closest.ClusterID);
+                signal(encoder.baseAssignment(closest.ClusterID, false), 2);
+                Point emptyadj = findEmptyAdj(me, true);
+                return buildUnit(SPECS.PILGRIM, emptyadj.x, emptyadj.y); 
+            }   
+        }
+
+        // check if church has been constructed
+        // TODO check even if church is not created exactly at mean
+        if (!myclusters.isEmpty()) {
+            ArrayList<DepotCluster> to_remove = new ArrayList<>();
+            for (Robot bot : visRobots) {
+                if (bot.unit == SPECS.CHURCH) {
+                    for (DepotCluster cluster: myclusters) {
+                        if (cluster.locX == bot.x && cluster.locY == bot.y) {
+                            to_remove.add(cluster);
+                        }
+                    }
+                }
+            }
+            myclusters.removeAll(to_remove);
+        }
+
+        if (!myclusters.isEmpty()) {
+            for (DepotCluster cluster: myclusters) {
+                cluster.turns_to_check--;
+                if (cluster.turns_to_check == 0) {
+                    signal(encoder.baseAssignment(closest.ClusterID, false),2);//temp range 1
+                    Point emptyadj = findEmptyAdj(me, true);
+                    cluster.turns_to_check = 10;
+                    return buildUnit(SPECS.PILGRIM, emptyadj.x, emptyadj.y);
+                }
+            }
+        }
+        
+
+        // all clusters allocated
+        // start creating a squad
+        int unit_number = 0;
+        int[] unit_requirements = requirements[tiger_squad[unit_number]];
+        if (unit_requirements[0] > karbonite && unit_requirements[1] > fuel) {
+            int unit_type = tiger_squad[unit_number];
+            Point emptyadj = findEmptyAdj(me, false);
+            unit_number = (unit_number++)%tiger_squad.length;
+            return buildUnit(unit_type, emptyadj.x,emptyadj.y);
+        }
+
+    }
+
+    // church AI
+    public Action churchAI(Robot me){
+
+        
+    visRobots = getVisibleRobots();
+    
+        // TODO: check for depots belonging in the cluster
+        LinkedList<Point> fuel_depots = new LinkedList<>();
+        LinkedList<Point> karb_depots = new LinkedList<>();
+        boolean fuelb =   true;
+        ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
+        ArrayList<Point> assigned_depots = new ArrayList<>();
+        // for(Point p:fuel_pos){
+        //     if(DepotCluster.checkClusterRange(me.x,me.y,p.x,p.y)){
+        //         fuel_depots.addLast(p);
+        //     }
+        // }
+        // for(Point p:karbo_pos){
+        //     if(DepotCluster.checkClusterRange(me.x,me.y,p.x,p.y)){
+        //         karb_depots.addLast(p);
+        //     }
+        // }
+        //depot defence management
+        if (me.turn == 1) {
+            // for first turn add position to list
+            church_pos.add(new Point(me.x, me.y));
+        } else{
+            for(int i = 0 ; i < visRobots.length;i++ ){
+                if( visRobots[i].team != me.team){//check if enemy
+                    int code = 0;
+                    int range = 0;
+                    if(visRobots[i].unit == SPECS.CRUSADER ||  visRobots[i].unit == SPECS.PREACHER || visRobots[i].unit == SPECS.PROPHET){ //check if unit can attack
+                        code = 2;
+                        range = 9;     
+                    }else{
+                        code = 1;
+                        range = 9;                                                                                                                                                                        
+                    }         
+                    signal(code,range);      
+                }
+            }
+        }
+        
+        //depot mining management
+        
+        //TODO: assign pilgrims to depots
+        if (karbonite > 10 && fuel > 50)
+        {   
+            Point p = findEmptyAdj(me,true);
+            Point nextP;            
+            if(p!=null){ // assign a new pilgrim if it can be built
+                if(fuelb){
+                    nextP = fuel_depots.pollFirst();                                        
+                }else{
+                    nextP = karb_depots.pollFirst();
+                }  
+                signal(encoder.assignDepot(nextP),1);
+                fuelb = !fuelb;                                
+            }                                    
+        }
+
+        // // keep track of pilgrims
+        // if(turn == 1){//assign depot to the first pilgrim
+        //     for(Robot r: visRobots){
+        //         if(r.signal_radius < 3 && r.unit == SPECS.PILGRIM){                    
+        //         }                                
+        //     }            
+        // }                            
+
+                
+        
+                                                 
+    }    
 
     //*** Main Code ***/
     public Action turn() {
@@ -403,7 +611,9 @@ public class MyRobot extends BCAbstractRobot {
             fuel_map = getFuelMap();
             karbo_map = getKarboniteMap();
             map_length = passable_map.length;
-            
+            clusterList = new ResourceData(fuel_map, karbo_map);
+            encoder = new Encoder();
+
             for (int i = 0; i < fuel_map.length; i++) {
                 for (int j = 0; j < fuel_map[i].length; j++) {
                     if (fuel_map[i][j]) {
@@ -423,23 +633,7 @@ public class MyRobot extends BCAbstractRobot {
 
         // initialization
         visRobotMap = getVisibleRobotMap();
-
-        // Castle AI
-        if (me.unit == SPECS.CASTLE) {
-            if (me.turn == 1) {
-                // for first turn add position to list
-                castle_pos.add(new Point(me.x, me.y));
-            }
-            if (me.turn <= 5) {
-                Point emptyadj = findEmptyAdj(me, true);
-                if (emptyadj == null) {
-                    return null;
-                } else {
-                    log("created new pilgrim at " + Integer.toString(me.x + emptyadj.x) + ", " + Integer.toString(me.y + emptyadj.y));
-                    return buildUnit(SPECS.PILGRIM, emptyadj.x, emptyadj.y);
-                }
-            }
-        }
+        myloc = new Point(me.x, me.y);
 
         // Pilgrim AI
         if (me.unit == SPECS.PILGRIM) {
@@ -447,28 +641,16 @@ public class MyRobot extends BCAbstractRobot {
             return pilgrimAI(me);
         }
 
+        // Castle AI
+        if (me.unit == SPECS.CASTLE) {
+            log("launching castle ai");
+            return castleAI(me);
+        }
+
         // Church AI
         if (me.unit == SPECS.CHURCH) {
-            if (me.turn == 1) {
-                // for first turn add position to list
-                church_pos.add(new Point(me.x, me.y));
-            } else{
-                visRobots = getVisibleRobots();
-                for(int i = 0 ; i < visRobots.length;i++ ){ //TODO: check for enemy robots in a certain range and if they are of attacking type
-                    if( visRobots[i].team != me.team){//check if enemy
-                        int code = 0;
-                        int range = 0;
-                        if(visRobots[i].unit == 3 ||  visRobots[i].unit == 4 || visRobots[i].unit == 5){ //check if unit can attack
-                            code = 2;
-                            range = 9;     
-                        }else{
-                            code = 1;
-                            range = 9;                                                                                                                                                                        
-                        }         
-                        signal(code,range);      
-                    }
-                }
-            }
+            log("launching church AI");
+            return churchAI(me);                                                            
         }
 
         // Crusader AI
