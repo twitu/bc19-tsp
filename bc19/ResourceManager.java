@@ -23,10 +23,12 @@ public class ResourceManager {
     ///*** END ***///
 
     // Private Variables
-    public ArrayList<Cluster> resourceList = new ArrayList<>();
+    public ArrayList<Cluster> resourceList;
 
     // Process map data and generate clusters with unique ID
     public ResourceManager(boolean[][] fuel, boolean[][] karbo) {
+        resourceList = new ArrayList<>();
+        
         for (int i = 0; i < fuel.length; i++) {
             for (int j = 0; j < fuel.length; j++) {
                 if (fuel[i][j] || karbo[i][j]) {

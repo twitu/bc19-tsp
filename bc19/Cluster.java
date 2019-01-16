@@ -26,9 +26,9 @@ public class Cluster {
     public ArrayList<Point> karboPos = new ArrayList<>();
     public int ClusterID;
     public int locX, locY;
+    public int fuel_count, karbonite_count;
 
     // Castle Interface
-
     
     // Initialize Cluster
     public Cluster(int ID) {

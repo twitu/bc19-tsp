@@ -1,7 +1,25 @@
 package bc19;
 
-public class Encoder {
+public class Comms {
 
+    ///*** Private Variables and Initialization ***///
+    // Identification and map
+    MyRobot robo;
+    Robot me;
+    boolean[][] passable_map;
+    boolean[][] fuel_map;
+    boolean[][] karbo_map;
+
+    // Other Variables
+
+    public Comms(MyRobot robo) {
+        this.robo = robo;
+        this.me = robo.me;
+    }
+
+    ///*** Communication encoder functions ***///
+    
+    
     // Tell unit to set its base ID to given ID. LSB code: 0000 for all units 0001 for recruits only.
     public int baseAssignment(int ID, boolean emergency) {
         if (emergency) {
@@ -25,4 +43,5 @@ public class Encoder {
     public int clearPath(Point p){
         return (p.x*1024 + p.y*16 + 4);
     }
+
 }
