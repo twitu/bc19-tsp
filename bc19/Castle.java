@@ -38,7 +38,9 @@ public class Castle {
         robot.log("Castle: Map data acquired");
         
         // store other castles
+        manager.update_data();
         castle_pos = new ArrayList<>();
+        my_cluster = new ArrayList<>();
         for (Robot bot: manager.vis_robots) {
             if (bot.unit == robot.SPECS.CASTLE) {
                 castle_pos.add(bot);
@@ -50,7 +52,9 @@ public class Castle {
     public Action AI() {
 
         manager.update_data();
-
+        // for(Robot R : manager.vis_robots) {
+        //     robot.log("Castle at " + Integer.toString(R.x) + "," + Integer.toString(R.y));
+        // }
         // find closest depot
         Cluster closest = null;
         if (cluster_count != 0) {
@@ -63,34 +67,41 @@ public class Castle {
                 }
             }
 
-            // find next cluster with highest number of karbonite depots
-            int karb_count = Integer.MIN_VALUE;
-            Cluster chosen_cluster = null;
-            for (Cluster cluster: depot_cluster) {
-                if (cluster.karbonite_count > karb_count) {
-                    chosen_cluster = cluster;
-                    karb_count = cluster.karbonite_count;
+            if(cluster_count > 0 ){
+                // find next cluster with highest number of karbonite depots
+                int karb_count = Integer.MIN_VALUE;
+                Cluster chosen_cluster = null;
+                for (Cluster cluster: depot_cluster) {
+                        // robot.log( "current karb:" + Integer.toString(cluster.karbonite_count) + "  max:" + Integer.toString(karb_count) );
+                    if (cluster.karbonite_count > karb_count) {
+                        chosen_cluster = cluster;
+                        karb_count = cluster.karbonite_count;
+                    }
                 }
-            }
-
-            // check if chosen cluster is nearest to me
-            int cluster_dist = Integer.MAX_VALUE;
-            int dist;
-            Robot closest_bot;
-            for (Robot bot: castle_pos) {
-                dist = manager.square_distance(bot, new Point(chosen_cluster.locX, chosen_cluster.locY));
-                if (dist < cluster_dist) {
-                    cluster_dist = dist;
-                    closest_bot = bot;
+                
+                // robot.log("count : "  + Integer.toString(cluster_count) + " id: " + Integer.toString(chosen_cluster.ClusterID));
+    
+                // check if chosen cluster is nearest to me
+                int cluster_dist = Integer.MAX_VALUE;
+                int dist;
+                Robot closest_bot;
+                for (Robot bot: castle_pos) {
+                    dist = manager.square_distance(bot, new Point(chosen_cluster.locX, chosen_cluster.locY));
+                    if (dist < cluster_dist) {
+                        cluster_dist = dist;
+                        closest_bot = bot;
+                    }
                 }
-            }
-
-            // if closest_bot is me send pilgrim
-            if (closest_bot.id == me.id) {
-                my_cluster.add(chosen_cluster);
-                radio.baseAssignment(chosen_cluster.ClusterID, false);
-                Point empty_adj = manager.findEmptyAdj(manager.me_location, false);
-                return robot.buildUnit(robot.SPECS.PILGRIM, empty_adj.x - me.x, empty_adj.y - me.y);
+    
+                // if closest_bot is me send pilgrim
+                if (closest_bot.id == me.id) {
+                    my_cluster.add(chosen_cluster);
+                    robot.signal(radio.baseAssignment(chosen_cluster.ClusterID, false),2);
+                    
+                    Point empty_adj = manager.findEmptyAdj(manager.me_location, false);//TODO : check buildable before building
+                    robot.log("building pilgrim at " + Integer.toString(me.signal));
+                    return robot.buildUnit(robot.SPECS.PILGRIM, empty_adj.x, empty_adj.y);
+                }
             }
         }
 
@@ -145,7 +156,9 @@ public class Castle {
         int unit_type = MyRobot.tiger_squad[unit_number];
         Point emptyadj = manager.findEmptyAdj(me, false);
         unit_number = (unit_number++) % MyRobot.tiger_squad.length;
+        robot.log("unnit type: " + Integer.toString(MyRobot.tiger_squad[unit_number]));
         return robot.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+        
     }
 
 }

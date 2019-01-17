@@ -35,6 +35,8 @@ public class Cluster {
         this.ClusterID = ID;
         locX = -1;
         locY = -1;
+        fuel_count = 0;
+        karbonite_count = 0;
     }
 
     // Add a new depot and shift center of mass accordingly
@@ -50,9 +52,11 @@ public class Cluster {
             locY /= (fuelPos.size() + karboPos.size() + 1);
         }
         if (fuel) {
+            fuel_count++;
             fuelPos.add(new Point(x, y));
         }
         else {
+            karbonite_count++;
             karboPos.add(new Point(x, y));
         }
     }

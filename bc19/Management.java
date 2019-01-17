@@ -105,11 +105,12 @@ public class Management {
 
         directions = (r_four) ? MyRobot.four_directions : MyRobot.nine_directions;
 
-        robot.log("finding next point for path x: " + Integer.toString(x) + " y: " + Integer.toString(y));
+        // robot.log("finding next point for path x: " + Integer.toString(x) + " y: " + Integer.toString(y));
         while (!src.isEmpty()) {
             current = src.pollFirst();
             for (Point p: directions) {
                 next = new Point(current.x + p.x, current.y + p.y);
+                    // robot.log("aaa " + Integer.toString(p.x) +  "aa" + Integer.toString(current.x) + "aa" +  Integer.toString(next.x));
                 if (next.x >= 0 && next.x < map_length && next.y >= 0 && next.y < map_length) {
                     if (next.x == x && next.y == y) {
                         return current;
@@ -124,6 +125,13 @@ public class Management {
         }
 
         return null;
+    }
+    
+    //alternative accepting single destination
+    public Point findNextStepP(int x, int y, boolean[][] map, boolean r_four, Point p) {
+        LinkedList<Point> l = new LinkedList<>();
+        l.add(p);
+        return findNextStep(x,y,map,r_four,l);
     }
 
     // square distance between two points represented by robot and point

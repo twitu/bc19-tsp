@@ -122,7 +122,7 @@ public class MyRobot extends BCAbstractRobot {
         // Select Unit type and AI
         switch (me.unit) {
             case 0:     return castle.AI();
-            case 1:     return church.AI();
+            // case 1:     return church.AI();
             case 2:     return pilgrim.AI();
             case 3:     return crusader.AI();
             case 4:     return prophet.AI();
