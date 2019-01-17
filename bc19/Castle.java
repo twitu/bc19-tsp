@@ -37,6 +37,7 @@ public class Castle {
         robot.castleTalk(0);
         assigned_pilgrims = new ArrayList<>();
         assigned_depots = new ArrayList<>();
+        my_cluster = new ArrayList<>();
                 
         // Process and store depot clusters
         resData = new ResourceManager(manager.fuel_map, manager.karbo_map);
