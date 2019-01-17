@@ -116,7 +116,7 @@ public class Church {
                 }else{
                     nextP = karb_depots.pollFirst();
                 }
-                robo.signal(robo.radio.assignDepot(nextP),1);
+                robo.signal(robo.radio.assignDepot(nextP),2);
                 assigned_depots.add(nextP);
                 // created = true;
                 return robo.buildUnit(robo.SPECS.PILGRIM,p.x,p.y);

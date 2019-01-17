@@ -1,6 +1,7 @@
 package bc19;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 public class Castle {
 
@@ -14,7 +15,6 @@ public class Castle {
     Comms radio;
 
     // private variables
-    ArrayList<Robot> castle_pos;
     ArrayList<Cluster> depot_cluster;
     ArrayList<Cluster> my_cluster;
     int cluster_count, my_cluster_count;
@@ -32,18 +32,35 @@ public class Castle {
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.fuel_map, manager.karbo_map);
+        resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry);
         depot_cluster = resData.resourceList;
         cluster_count = depot_cluster.size();
         my_cluster_count = 0;
         robot.log("Castle: Map data acquired");
-        
-        // store other castles
-        manager.update_data();
-        castle_pos = new ArrayList<>();
-        my_cluster = new ArrayList<>();
-        for (Robot bot: manager.vis_robots) {
-            if (bot.unit == robot.SPECS.CASTLE) {
-                castle_pos.add(bot);
+
+        // change cluster mean location if castle in cluster
+        for (Cluster cluster: depot_cluster) {
+            if (cluster.checkRange(me.x,me.y)){
+                cluster.locX = me.x;
+                cluster.locY = me.y;
+            }
+        }
+
+
+        LinkedList<Point> fuel_depots,karb_depots = new LinkedList<>();
+        boolean fuelb;
+        ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
+        ArrayList<Point> assigned_depots = new ArrayList<>();
+        Point nextP;
+        fuelb = false;
+        for (int i = 0; i < manager.fuel_map.length; i++) {
+            for (int j = 0; j < manager.fuel_map[i].length; j++) {
+                if (manager.fuel_map[i][j]) {
+                    fuel_depots.add(new Point(j, i));
+                }
+                if (manager.karbo_map[i][j]) {
+                    karb_depots.add(new Point(j, i));
+                }
             }
         }
     }
@@ -52,11 +69,8 @@ public class Castle {
     public Action AI() {
 
         manager.update_data();
-        // for(Robot R : manager.vis_robots) {
-        //     robot.log("Castle at " + Integer.toString(R.x) + "," + Integer.toString(R.y));
-        // }
+        
         // find closest depot
-        Cluster closest = null;
         if (cluster_count != 0) {
 
             // remove any clusters that have been claimed
@@ -68,37 +82,41 @@ public class Castle {
             }
 
             if(cluster_count > 0 ){
-                // find next cluster with highest number of karbonite depots
-                int karb_count = Integer.MIN_VALUE;
-                Cluster chosen_cluster = null;
-                for (Cluster cluster: depot_cluster) {
-                        // robot.log( "current karb:" + Integer.toString(cluster.karbonite_count) + "  max:" + Integer.toString(karb_count) );
-                    if (cluster.karbonite_count > karb_count) {
-                        chosen_cluster = cluster;
-                        karb_count = cluster.karbonite_count;
-                    }
-                }
-                
-                // robot.log("count : "  + Integer.toString(cluster_count) + " id: " + Integer.toString(chosen_cluster.ClusterID));
-    
-                // check if chosen cluster is nearest to me
+                // choose cluster nearest to me
                 int cluster_dist = Integer.MAX_VALUE;
                 int dist;
-                Robot closest_bot;
-                for (Robot bot: castle_pos) {
+                Cluster chosen_cluster = null;
+                for (Cluster cluster: depot_cluster) {
                     dist = manager.square_distance(bot, new Point(chosen_cluster.locX, chosen_cluster.locY));
                     if (dist < cluster_dist) {
                         cluster_dist = dist;
-                        closest_bot = bot;
+                        chosen_cluster = cluster;
                     }
                 }
     
                 // if closest_bot is me send pilgrim
-                if (closest_bot.id == me.id) {
+                if (chosen_cluster != null) {
                     my_cluster.add(chosen_cluster);
-                    robot.signal(radio.baseAssignment(chosen_cluster.ClusterID, false),2);
-                    
-                    Point empty_adj = manager.findEmptyAdj(manager.me_location, false);//TODO : check buildable before building
+                    if(chosen_cluster.locX == me.x && chosen_cluster.locY == me.y){
+                        if(manager.buildable(robot.SPECS.PILGRIM)){
+                            Point p = manager.findEmptyAdj(me,true);
+                            if(p != null){
+                                if(fuelb){
+                                    nextP = fuel_depots.pollFirst();                                        
+                                }else{
+                                    nextP = karb_depots.pollFirst();
+                                }
+                                robot.signal(robot.radio.assignDepot(nextP),2);
+                                assigned_depots.add(nextP);
+                                // created = true;
+                                return robot.buildUnit(robot.SPECS.PILGRIM,p.x,p.y);
+                            }
+                        }
+                    }else{
+                        robot.signal(radio.baseAssignment(chosen_cluster.ClusterID, false), 2);
+                    }
+                    robot.castleTalk(chosen_cluster.ClusterID);
+                    Point empty_adj = manager.findEmptyAdj(manager.me_location, false);
                     robot.log("building pilgrim at " + Integer.toString(me.signal));
                     return robot.buildUnit(robot.SPECS.PILGRIM, empty_adj.x, empty_adj.y);
                 }

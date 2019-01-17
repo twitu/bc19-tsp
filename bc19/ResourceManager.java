@@ -20,10 +20,15 @@ public class ResourceManager {
     //  public LinkedList<Point> depotList(int ID, boolean fuel)
     //      Return a linked list of all fuel/karbonite depots in cluster with given ID.
     //
+    //  public int nearestClusterID(int x, int y, ArrarList<Integer> avoid)
+    //      Get cluster ID of nearest cluster, avoiding certain clusters
+    //
     ///*** END ***///
 
     // Private Variables
     public ArrayList<Cluster> resourceList;
+    public ArrayList<Cluster> homeClusters;
+    public ArrayList<Cluster> enemyClusters;
 
     // Process map data and generate clusters with unique ID
     public ResourceManager(boolean[][] fuel, boolean[][] karbo) {
@@ -81,4 +86,43 @@ public class ResourceManager {
         return out;
     }
 
+    // Get cluster ID of nearest cluster, avoiding certain clusters
+    public int nearestClusterID(int x, int y, ArrayList<Integer> avoid) {
+        int dist, ID = 0, max_dist = Integer.MAX_VALUE;
+        for (Cluster D: resourceList) {
+            dist = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);
+            if (dist < max_dist) {
+                ID = D.ClusterID;
+                max_dist = dist;
+            }
+        }
+        return ID;
+    }
+
+    // Classify clusters
+    public void pairClusters(int x, int y, int map_length, boolean vsymmetry) {
+        Cluster Dual;
+        int ID;
+        for (Cluster D : resourceList) {
+            if ((homeClusters.contains(D) || (enemyClusters.contains(D))) {
+                continue;
+            }
+            if (vsymmetry) {
+                ID = getID(D.locX, map_length - 1 - D.locY);
+            }
+            else {
+                ID = getID(map_length - 1 - D.locX, D.locY);
+            }
+            Dual = resourceList.get(ID);
+            int R = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);
+            int Rdual = (Dual.locX - x)*(Dual.locX - x) + (Dual.locY - y)*(Dual.locY - y);
+            if (R <= Rdual) {
+                homeClusters.add(D);
+                enemyClusters.add(Dual);
+            } else {
+                homeClusters.add(Dual);
+                enemyClusters.add(D);
+            }
+        }
+    }
 }

@@ -23,11 +23,6 @@ public class Crusader {
         this.manager = robo.manager;
         this.radio = robo.radio;
 
-        // Get raw map data
-        passable_map = robo.getPassableMap();
-        fuel_map = robo.getFuelMap();
-        karbo_map = robo.getKarboniteMap();
-
         // Process and store depot clusters
         resData = new ResourceManager(fuel_map, karbo_map);
         robo.log("Crusader: Map data acquired");

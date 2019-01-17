@@ -21,6 +21,9 @@ public class Cluster {
     //
     ///*** END ***///
 
+    // size of cluster
+    public static int range = 50;
+
     // Private Variables
     public ArrayList<Point> fuelPos = new ArrayList<>();
     public ArrayList<Point> karboPos = new ArrayList<>();
@@ -78,7 +81,7 @@ public class Cluster {
 
     // Check if (x, y) is within range of given cluster
     public boolean checkRange(int x, int y) {
-        return (((x - locX)*(x - locX) + (y - locY)*((y - locY))) <= 50);
+        return (((x - locX)*(x - locX) + (y - locY)*((y - locY))) <= Cluster.range);
     }
 
 }

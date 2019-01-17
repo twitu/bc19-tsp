@@ -11,15 +11,15 @@ public class Management {
     MyRobot robot;
     Robot me;
     Point me_location;
+    
+    // Other Variables
     boolean[][] passable_map;
     boolean[][] fuel_map;
     boolean[][] karbo_map;
     int[][] vis_robot_map;
     Robot[] vis_robots;
     int map_length;
-    
-
-    // Other Variables
+    boolean vsymmetry;
 
     public Management(MyRobot robot) {
         this.robot = robot;
@@ -28,6 +28,7 @@ public class Management {
         fuel_map = robot.getFuelMap();
         karbo_map = robot.getKarboniteMap();
         map_length = passable_map.length;
+        vsymmetry = map_vsym();
     }
 
     ///*** Helper functions ***///
@@ -190,6 +191,27 @@ public class Management {
         }else{//default
             return false;
         }
+    }
+
+    public boolean map_vsym(){
+        if(map_length%2 == 0){
+            for(int i = 0; i< map_length/2;i++){
+                for(int j = 0; j< map_length;j++){
+                    if(passable_map[i][j]!=passable_map[map_length-i-1][j]){
+                        return false;
+                    }
+                }
+            }
+        }else{
+            for(int i = 0; i< (map_length-1)/2;i++){
+                for(int j = 0; j< map_length;j++){
+                    if(passable_map[i][j]!=passable_map[map_length-i-1][j]){
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
 }

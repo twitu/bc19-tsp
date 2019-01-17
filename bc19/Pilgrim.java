@@ -54,6 +54,10 @@ public class Pilgrim {
                     if (robo.isRadioing(bot)) {
                         cluster_id = bot.signal % 16;
                         home_cluster = resData.resourceList.get(cluster_id);
+                        if(home_cluster.locX == bot.x && home_cluster.locY == bot.y){
+                            home = new Point(bot.x,bot.y);
+                            
+                        }
                         status = 1;//go to cluster
                         break;
                     }
