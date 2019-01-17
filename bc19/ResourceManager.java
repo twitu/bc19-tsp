@@ -33,6 +33,8 @@ public class ResourceManager {
     // Process map data and generate clusters with unique ID
     public ResourceManager(boolean[][] fuel, boolean[][] karbo) {
         resourceList = new ArrayList<>();
+        homeClusters = new ArrayList<>();
+        enemyClusters =  new ArrayList<>();
         
         for (int i = 0; i < fuel.length; i++) {
             for (int j = 0; j < fuel.length; j++) {
@@ -104,7 +106,7 @@ public class ResourceManager {
         Cluster Dual;
         int ID;
         for (Cluster D : resourceList) {
-            if ((homeClusters.contains(D) || (enemyClusters.contains(D))) {
+            if ((homeClusters.contains(D) || (enemyClusters.contains(D)))) {
                 continue;
             }
             if (vsymmetry) {

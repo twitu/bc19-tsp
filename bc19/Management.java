@@ -29,6 +29,7 @@ public class Management {
         karbo_map = robot.getKarboniteMap();
         map_length = passable_map.length;
         vsymmetry = map_vsym();
+        this.update_data();
     }
 
     ///*** Helper functions ***///
@@ -129,7 +130,7 @@ public class Management {
     }
     
     //alternative accepting single destination
-    public Point findNextStepP(int x, int y, boolean[][] map, boolean r_four, Point p) {
+    public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, Point p) {
         LinkedList<Point> l = new LinkedList<>();
         l.add(p);
         return findNextStep(x,y,map,r_four,l);

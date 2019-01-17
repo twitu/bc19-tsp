@@ -15,11 +15,17 @@ public class Castle {
     Comms radio;
 
     // private variables
+    ArrayList<Robot> castle_pos;
     ArrayList<Cluster> depot_cluster;
     ArrayList<Cluster> my_cluster;
     int cluster_count, my_cluster_count;
     boolean preserve_resources;
 
+    LinkedList<Point> fuel_depots, karb_depots;
+    boolean fuelb;
+    ArrayList<Integer> assigned_pilgrims;
+    ArrayList<Point> assigned_depots ;
+    Point nextP;
     // Initialization
     public Castle(MyRobot robot) {
 
@@ -29,7 +35,9 @@ public class Castle {
         this.manager = robot.manager;
         this.radio = robot.radio;
         robot.castleTalk(0);
-
+        assigned_pilgrims = new ArrayList<>();
+        assigned_depots = new ArrayList<>();
+                
         // Process and store depot clusters
         resData = new ResourceManager(manager.fuel_map, manager.karbo_map);
         resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry);
@@ -46,13 +54,9 @@ public class Castle {
             }
         }
 
-
-        LinkedList<Point> fuel_depots,karb_depots = new LinkedList<>();
-        boolean fuelb;
-        ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
-        ArrayList<Point> assigned_depots = new ArrayList<>();
-        Point nextP;
         fuelb = false;
+        fuel_depots = new LinkedList<>();
+        karb_depots = new LinkedList<>();
         for (int i = 0; i < manager.fuel_map.length; i++) {
             for (int j = 0; j < manager.fuel_map[i].length; j++) {
                 if (manager.fuel_map[i][j]) {
@@ -61,6 +65,14 @@ public class Castle {
                 if (manager.karbo_map[i][j]) {
                     karb_depots.add(new Point(j, i));
                 }
+            }
+        }
+
+        // make list of all castles
+        castle_pos = new ArrayList<>();
+        for (Robot bot: manager.vis_robots) {
+            if (bot.unit == robot.SPECS.CASTLE && bot.id != me.id) {
+                castle_pos.add(bot);
             }
         }
     }
@@ -83,16 +95,7 @@ public class Castle {
 
             if(cluster_count > 0 ){
                 // choose cluster nearest to me
-                int cluster_dist = Integer.MAX_VALUE;
-                int dist;
-                Cluster chosen_cluster = null;
-                for (Cluster cluster: depot_cluster) {
-                    dist = manager.square_distance(bot, new Point(chosen_cluster.locX, chosen_cluster.locY));
-                    if (dist < cluster_dist) {
-                        cluster_dist = dist;
-                        chosen_cluster = cluster;
-                    }
-                }
+                Cluster chosen_cluster = depot_cluster.get(resData.nearestClusterID(me.x, me.y, null));
     
                 // if closest_bot is me send pilgrim
                 if (chosen_cluster != null) {
@@ -100,6 +103,7 @@ public class Castle {
                     if(chosen_cluster.locX == me.x && chosen_cluster.locY == me.y){
                         if(manager.buildable(robot.SPECS.PILGRIM)){
                             Point p = manager.findEmptyAdj(me,true);
+                            Point nextP;
                             if(p != null){
                                 if(fuelb){
                                     nextP = fuel_depots.pollFirst();                                        
@@ -174,7 +178,7 @@ public class Castle {
         int unit_type = MyRobot.tiger_squad[unit_number];
         Point emptyadj = manager.findEmptyAdj(me, false);
         unit_number = (unit_number++) % MyRobot.tiger_squad.length;
-        robot.log("unnit type: " + Integer.toString(MyRobot.tiger_squad[unit_number]));
+        robot.log("unit type: " + Integer.toString(MyRobot.tiger_squad[unit_number]));
         return robot.buildUnit(unit_type, emptyadj.x,emptyadj.y);
         
     }

@@ -52,12 +52,18 @@ public class Pilgrim {
                     }
                 } else if (bot.unit == robo.SPECS.CASTLE) {
                     if (robo.isRadioing(bot)) {
-                        cluster_id = bot.signal % 16;
-                        home_cluster = resData.resourceList.get(cluster_id);
-                        if(home_cluster.locX == bot.x && home_cluster.locY == bot.y){
+                        if(bot.signal%16==3){
+                            mineLoc = new Point(1,1);
+                            mineLoc.x = bot.signal/1024;
+                            mineLoc.y = (bot.signal/16)%16;
                             home = new Point(bot.x,bot.y);
+                            status = 0;
+                            break;
                             
                         }
+                        cluster_id = bot.signal % 16;
+                        home_cluster = resData.resourceList.get(cluster_id);
+                        
                         status = 1;//go to cluster
                         break;
                     }
@@ -86,7 +92,7 @@ public class Pilgrim {
                     return robo.buildUnit(robo.SPECS.CHURCH, P.x - me.x, P.y - me.y);
                 }
             } else {                          
-                Point next = manager.findNextStepP(me.x, me.y, manager.copyMap(manager.passable_map), true, P);
+                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, P);
                 robo.log("next is " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 if ((next.x == P.x) &&(next.y == P.y)){
                     next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
@@ -105,7 +111,7 @@ public class Pilgrim {
                     return robo.give(home.x - me.x , home.y-me.y,me.karbonite,me.fuel);
                 }
                 
-                Point next = manager.findNextStepP(me.x,me.y,manager.copyMap(manager.passable_map),true,home);
+                Point next = manager.findNextStep(me.x,me.y,manager.copyMap(manager.passable_map),true,home);
                 if(next.x==home.x && next.y == home.y){
                     next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
                 }
@@ -115,7 +121,7 @@ public class Pilgrim {
                 if(me.x == mineLoc.x && me.y == mineLoc.y){
                     return robo.mine();
                 }
-                Point next = manager.findNextStepP(me.x,me.y,manager.copyMap(manager.passable_map),true,mineLoc);
+                Point next = manager.findNextStep(me.x,me.y,manager.copyMap(manager.passable_map),true,mineLoc);
                 return robo.move(next.x - me.x, next.y - me.y);
                 
                 
