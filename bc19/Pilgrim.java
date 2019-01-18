@@ -121,7 +121,8 @@ public class Pilgrim {
                 Point next = manager.findNextStep(me.x,me.y,manager.copyMap(manager.passable_map),true,home);
                 robo.log("found next step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 if(next.x==home.x && next.y == home.y){
-                    next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
+                    next = manager.findEmptyNextAdj(home,new Point(me.x,me.y), MyRobot.four_directions);
+                    robo.log("found updated step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 }
                 return robo.move(next.x - me.x, next.y - me.y);
             } else {

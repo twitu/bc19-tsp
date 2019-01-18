@@ -45,7 +45,7 @@ public class Management {
         karbo_map = robo.getKarboniteMap();
         map_length = passable_map.length;
         vsymmetry = mapVsym();
-        updateData();
+        update_data();
     }
 
     // Determine map symmetry
@@ -183,12 +183,10 @@ public class Management {
 
     // Find point adjacent to destination that is within given set of moves
     public Point findEmptyNextAdj(Point dest, Point src, Point[] moves) {
+        Point temp;
         for (Point p: moves) {
-            Point temp = new Point(src.x + p.x, src.y + p.y);
-            if (!checkBounds(temp.x, temp.y)) {
-                continue;
-            }
-            if (isAdj(temp, dest) && passable_map[temp.y][temp.x] && vis_robot_map[temp.y][temp.x] <= 0) {
+            temp = new Point(src.x + p.x, src.y + p.y);
+            if (checkBounds(temp.x, temp.y) && passable_map[temp.y][temp.x] && (vis_robot_map[temp.y][temp.x] <= 0) && isAdj(temp, dest)) {
                 return temp;
             }
         }
