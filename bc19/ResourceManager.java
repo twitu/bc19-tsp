@@ -7,35 +7,22 @@ public class ResourceManager {
 
     ///*** API ***///
     //
-    //  public ResourceManager(boolean[][] fuel, boolean[][] karbo)
-    //      Analyze fuel and karbo maps and process data to form clusters.
-    //      Assign a unique ID to each cluster starting as 0, 1, 2, 3, ...
-    //
-    //  public int getID(int x, int y)
-    //      Get ID of cluster to which (x, y) belongs
-    //
-    //  public Point getLocation(int ID)
-    //      Get centre of mass of cluster with given ID
-    //
-    //  public LinkedList<Point> depotList(int ID, boolean fuel)
-    //      Return a linked list of all fuel/karbonite depots in cluster with given ID.
-    //
-    //  public int nearestClusterID(int x, int y, ArrarList<Integer> avoid)
-    //      Get cluster ID of nearest cluster, avoiding certain clusters
+    //  public ResourceManager(boolean[][] fuel, boolean[][] karbo);
+    //  public int getID(int x, int y);
+    //  public Point getLocation(int ID);
+    //  public LinkedList<Point> depotList(int ID, boolean fuel);
+    //  public int nearestClusterID(int x, int y, ArrarList<Integer> avoid);
+    //  public void pairClusters(int x, int y, int map_length, boolean vsymmetry);
     //
     ///*** END ***///
 
     // Private Variables
-    public ArrayList<Cluster> resourceList;
-    public ArrayList<Cluster> homeClusters;
-    public ArrayList<Cluster> enemyClusters;
+    public ArrayList<Cluster> resourceList = new ArrayList<>();
+    public ArrayList<Cluster> homeClusters = new ArrayList<>();
+    public ArrayList<Cluster> enemyClusters = new ArrayList<>();
 
     // Process map data and generate clusters with unique ID
-    public ResourceManager(boolean[][] fuel, boolean[][] karbo) {
-        resourceList = new ArrayList<>();
-        homeClusters = new ArrayList<>();
-        enemyClusters =  new ArrayList<>();
-        
+    public ResourceManager(boolean[][] terrain, boolean[][] fuel, boolean[][] karbo) {
         for (int i = 0; i < fuel.length; i++) {
             for (int j = 0; j < fuel.length; j++) {
                 if (fuel[i][j] || karbo[i][j]) {
@@ -54,6 +41,9 @@ public class ResourceManager {
                     }
                 }
             }
+        }
+        for (Cluster D : resourceList) {
+            D.homePoint(terrain, fuel, karbo);
         }
     }
 
@@ -101,7 +91,7 @@ public class ResourceManager {
         return ID;
     }
 
-    // Classify clusters
+    // Classify clusters into pairs of home, enemy.
     public void pairClusters(int x, int y, int map_length, boolean vsymmetry) {
         Cluster Dual;
         int ID;
@@ -120,11 +110,16 @@ public class ResourceManager {
             int Rdual = (Dual.locX - x)*(Dual.locX - x) + (Dual.locY - y)*(Dual.locY - y);
             if (R <= Rdual) {
                 homeClusters.add(D);
+                D.status = 0;
                 enemyClusters.add(Dual);
+                Dual.status = -1;
             } else {
                 homeClusters.add(Dual);
+                Dual.status = 0;
                 enemyClusters.add(D);
+                D.status = -1;
             }
         }
     }
+
 }
