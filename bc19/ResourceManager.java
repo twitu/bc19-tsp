@@ -81,7 +81,13 @@ public class ResourceManager {
     // Get cluster ID of nearest cluster, avoiding certain clusters
     public int nearestClusterID(int x, int y, ArrayList<Integer> avoid) {
         int dist, ID = 0, max_dist = Integer.MAX_VALUE;
+        if (avoid == null) {
+            avoid = new ArrayList<>();
+        }
         for (Cluster D: resourceList) {
+            if (avoid.contains(D.ClusterID)) {
+                continue;
+            }
             dist = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);
             if (dist < max_dist) {
                 ID = D.ClusterID;

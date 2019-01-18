@@ -10,7 +10,7 @@ public class Cluster {
     //  void addDepot(int x, int y, boolean fuel);
     //  boolean checkDepot(int x, int y);
     //  boolean checkRange(int x, int y);
-    //  void homePoint(boolean[][] terrain);
+    //  void homePoint(boolean[][] terrain, boolean[][] fuel, boolean[][] karbo);
     //
     ///*** END ***///
 
