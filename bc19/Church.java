@@ -28,7 +28,7 @@ public class Church {
 
 
         // Process and store depot clusters
-        resData = new ResourceManager(manager.fuel_map, manager.karbo_map);
+        resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         robo.log("Church: Map data acquired");
 
     }

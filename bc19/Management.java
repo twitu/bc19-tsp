@@ -159,7 +159,7 @@ public class Management {
     public Point findEmptyNextAdj(Point dest, Point src, Point[] moves) {
         for (Point p: moves) {
             Point temp = new Point(src.x + p.x, src.y + p.y);
-            if (isAdj(temp, dest) && passable_map[temp.x][temp.y] && vis_robot_map[temp.x][temp.y] <= 0) {
+            if (isAdj(temp, dest) && passable_map[temp.y][temp.x] && vis_robot_map[temp.y][temp.x] <= 0) {
                 return temp;
             }
         }

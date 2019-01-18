@@ -41,7 +41,7 @@ public class Castle {
         my_cluster = new ArrayList<>();
                 
         // Process and store depot clusters
-        resData = new ResourceManager(manager.fuel_map, manager.karbo_map);
+        resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry);
         depot_cluster = resData.resourceList;
         cluster_count = depot_cluster.size();

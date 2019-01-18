@@ -3,9 +3,6 @@ package bc19;
 public class Prophet {
 
     // Map data
-    boolean[][] passable_map;
-    boolean[][] fuel_map;
-    boolean[][] karbo_map;
     ResourceManager resData;
     
     // Self references
@@ -23,13 +20,8 @@ public class Prophet {
         this.manager = robo.manager;
         this.radio = robo.radio;
 
-        // Get raw map data
-        passable_map = robo.getPassableMap();
-        fuel_map = robo.getFuelMap();
-        karbo_map = robo.getKarboniteMap();
-
         // Process and store depot clusters
-        resData = new ResourceManager(fuel_map, karbo_map);
+        resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         robo.log("Prophet: Map data acquired");
 
     }

@@ -32,7 +32,7 @@ public class Pilgrim {
         
         manager.update_data();
         // Process and store depot clusters
-        resData = new ResourceManager(manager.fuel_map, manager.karbo_map);
+        resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         // robo.log("Pilgrim: Map data acquired");
 
         for (Point p: MyRobot.adj_directions) {
@@ -112,7 +112,9 @@ public class Pilgrim {
         if (status == 0){
             if(me.karbonite == 20 || me.fuel == 100){
                 //deposit
+                robo.log("returning");
                 if(manager.isAdj(new Point(me.x,me.y),home)){
+                    robo.log("giving");
                     return robo.give(home.x - me.x , home.y-me.y,me.karbonite,me.fuel);
                 }
                 
