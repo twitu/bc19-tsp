@@ -33,7 +33,7 @@ public class Pilgrim {
         manager.update_data();
         // Process and store depot clusters
         resData = new ResourceManager(manager.fuel_map, manager.karbo_map);
-        robo.log("Pilgrim: Map data acquired");
+        // robo.log("Pilgrim: Map data acquired");
 
         for (Point p: MyRobot.adj_directions) {
             if (manager.vis_robot_map[me.y + p.y][me.x + p.x] > 0) {
@@ -46,6 +46,7 @@ public class Pilgrim {
                             mineLoc.y = ((ch_sig - 3)/16)%1024;
                             mineLoc.x = (ch_sig - 3)/1024;
                             status = 0;//miner
+                            robo.log("Pilgrim initialized status:" + Integer.toString(status) + "mineloc:"  + Integer.toString(mineLoc.x) + ", " +Integer.toString(mineLoc.y)+ "home:"  + Integer.toString(home.x) + ", " +Integer.toString(home.y));
                             home = new Point(bot.x, bot.y);
                             break;
                         }
@@ -55,9 +56,10 @@ public class Pilgrim {
                         if(bot.signal%16==3){
                             mineLoc = new Point(1,1);
                             mineLoc.x = bot.signal/1024;
-                            mineLoc.y = (bot.signal/16)%16;
+                            mineLoc.y = (bot.signal%1024)/16;
                             home = new Point(bot.x,bot.y);
                             status = 0;
+                            robo.log("Pilgrim initialized status:" + Integer.toString(status) + "mineloc:"  + Integer.toString(mineLoc.x) + ", " +Integer.toString(mineLoc.y)+ "home:"  + Integer.toString(home.x) + ", " +Integer.toString(home.y));
                             break;
                             
                         }
@@ -65,6 +67,8 @@ public class Pilgrim {
                         home_cluster = resData.resourceList.get(cluster_id);
                         
                         status = 1;//go to cluster
+                            robo.log("Pilgrim initialized status:" + Integer.toString(status));
+                        
                         break;
                     }
                 }
@@ -75,6 +79,7 @@ public class Pilgrim {
 
     // Bot AI
     public Action AI() {
+        this.me = robo.me;
      
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y) + "status: "  + Integer.toString(status));
 
@@ -112,6 +117,7 @@ public class Pilgrim {
                 }
                 
                 Point next = manager.findNextStep(me.x,me.y,manager.copyMap(manager.passable_map),true,home);
+                robo.log("found next step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 if(next.x==home.x && next.y == home.y){
                     next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
                 }
@@ -122,6 +128,7 @@ public class Pilgrim {
                     return robo.mine();
                 }
                 Point next = manager.findNextStep(me.x,me.y,manager.copyMap(manager.passable_map),true,mineLoc);
+                robo.log("found next step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
                 
                 

@@ -20,6 +20,7 @@ public class Castle {
     ArrayList<Cluster> my_cluster;
     int cluster_count, my_cluster_count;
     boolean preserve_resources;
+    Cluster selfC;
 
     LinkedList<Point> fuel_depots, karb_depots;
     boolean fuelb;
@@ -52,22 +53,21 @@ public class Castle {
             if (cluster.checkRange(me.x,me.y)){
                 cluster.locX = me.x;
                 cluster.locY = me.y;
+                selfC = cluster;
+                break;
             }
         }
 
         fuelb = false;
         fuel_depots = new LinkedList<>();
         karb_depots = new LinkedList<>();
-        for (int i = 0; i < manager.fuel_map.length; i++) {
-            for (int j = 0; j < manager.fuel_map[i].length; j++) {
-                if (manager.fuel_map[i][j]) {
-                    fuel_depots.add(new Point(j, i));
-                }
-                if (manager.karbo_map[i][j]) {
-                    karb_depots.add(new Point(j, i));
-                }
-            }
+        for(Point p:selfC.fuelPos){
+            fuel_depots.add(p);
         }
+        for(Point p:selfC.karboPos){
+            karb_depots.add(p);
+        }
+        
 
         // make list of all castles
         castle_pos = new ArrayList<>();
@@ -80,6 +80,7 @@ public class Castle {
 
     // Bot AI
     public Action AI() {
+        this.me = robot.me;
 
         manager.update_data();
         
@@ -97,6 +98,7 @@ public class Castle {
             if(cluster_count > 0 ){
                 // choose cluster nearest to me
                 Cluster chosen_cluster = depot_cluster.get(resData.nearestClusterID(me.x, me.y, null));
+                 // robot.log("Castle:dd cluster" + Integer.toString(chosen_cluster.ClusterID) + "pos :" +Integer.toString(chosen_cluster.locX) + "  " + Integer.toString(chosen_cluster.locY) );
     
                 // if closest_bot is me send pilgrim
                 if (chosen_cluster != null) {
@@ -110,9 +112,13 @@ public class Castle {
                                     nextP = fuel_depots.pollFirst();                                        
                                 }else{
                                     nextP = karb_depots.pollFirst();
+                                    if(karb_depots.size()==0){
+                                        fuelb=true;
+                                    }
                                 }
                                 robot.signal(robot.radio.assignDepot(nextP),2);
                                 assigned_depots.add(nextP);
+                                robot.log("Castle : assigning" + Integer.toString(nextP.x) + ", " + Integer.toString(nextP.y));
                                 // created = true;
                                 return robot.buildUnit(robot.SPECS.PILGRIM,p.x,p.y);
                             }
@@ -121,7 +127,11 @@ public class Castle {
                         robot.signal(radio.baseAssignment(chosen_cluster.ClusterID, false), 2);
                     }
                     robot.castleTalk(chosen_cluster.ClusterID);
-                    Point empty_adj = manager.findEmptyAdj(manager.me_location, false);
+                    Point empty_adj = manager.findEmptyAdj(me, false);
+                    robot.log("castle test");
+                    // robot.log("Castle:dd empadj" + Integer.toString(empty_adj.x)+ ","  " + Integer.toString(empty_adj.y) );
+    
+               
                     robot.log("building pilgrim at " + Integer.toString(me.signal));
                     return robot.buildUnit(robot.SPECS.PILGRIM, empty_adj.x, empty_adj.y);
                 }

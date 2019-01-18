@@ -31,6 +31,7 @@ public class Crusader {
 
     // Bot AI
     public Action AI() {
+        this.me = robo.me;
         
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
         return null;

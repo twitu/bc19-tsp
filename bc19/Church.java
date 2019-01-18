@@ -35,6 +35,7 @@ public class Church {
 
     // Bot AI
     public Action AI() {
+        this.me = robo.me;
         LinkedList<Point> fuel_depots,karb_depots = new LinkedList<>();
         boolean fuelb,created;
         ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
@@ -115,6 +116,9 @@ public class Church {
                     nextP = fuel_depots.pollFirst();                                        
                 }else{
                     nextP = karb_depots.pollFirst();
+                    if(karb_depots.size()==0){
+                        fuelb=true;
+                    }
                 }
                 robo.signal(robo.radio.assignDepot(nextP),2);
                 assigned_depots.add(nextP);
@@ -128,7 +132,7 @@ public class Church {
     public Point decodes3(int signal){
         Point p = new Point(1,1);
         p.x = signal/1024;
-        p.y = (signal/16)%16;
+        p.y = (signal%1024)/16;
         return p;
     }
 
