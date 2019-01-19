@@ -19,6 +19,7 @@ public class Management {
     //  Point findEmptyNextAdj(Point dest, Point src, Point[] moves);
     //  boolean buildable(int type);
     //  boolean checkBounds(int x, int y);
+    //  Point oppPoint(int x, int y); returns the symmetrically opposite point
     //
     ///*** END ***///
 
@@ -128,7 +129,7 @@ public class Management {
     // Find next point to move to closest source in given list
     // choose r^2=4 moves when r_four is true
     public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, LinkedList<Point> src) {
-        Point current, next = new Point(x, y);
+        Point current, next;
         Point[] directions;
 
         directions = (r_four) ? MyRobot.four_directions : MyRobot.nine_directions;
@@ -140,6 +141,35 @@ public class Management {
                 next = new Point(current.x + p.x, current.y + p.y);
                 if (next.x >= 0 && next.x < map_length && next.y >= 0 && next.y < map_length) {
                     if (next.x == x && next.y == y) {
+                        return current;
+                    } else {
+                        if (map[next.y][next.x] == true) {
+                            map[next.y][next.x] = false;
+                            src.add(next);
+                        } 
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    // Find next point to move to closest source in given list
+    // choose r^2=4 moves when r_four is true
+    public Point findNextStep(Point check, boolean[][] map, boolean r_four, LinkedList<Point> src) {
+        Point current, next;
+        Point[] directions;
+
+        directions = (r_four) ? MyRobot.four_directions : MyRobot.nine_directions;
+
+        robo.log("finding next point for path x: " + Integer.toString(x) + " y: " + Integer.toString(y));
+        while (!src.isEmpty()) {
+            current = src.pollFirst();
+            for (Point p: directions) {
+                next = new Point(current.x + p.x, current.y + p.y);
+                if (next.x >= 0 && next.x < map_length && next.y >= 0 && next.y < map_length) {
+                    if (next.x == check.x && next.y == check.y) {
                         return current;
                     } else {
                         if (map[next.y][next.x] == true) {
@@ -229,6 +259,19 @@ public class Management {
         } else {
             return true;
         }
+    }
+
+    public Point oppPoint(int x, int y) {
+        int oppx, oppy;
+        if (vsymmetry) {
+            oppx = x;
+            oppy = map_length - 1 - y;
+        } else {
+            oppx = map_length - 1 - x;
+            oppy = y;
+        }
+
+        return new Point(oppx, oppy);
     }
 
 }

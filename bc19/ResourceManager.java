@@ -105,12 +105,13 @@ public class ResourceManager {
             if ((homeClusters.contains(D) || (enemyClusters.contains(D)))) {
                 continue;
             }
+
             if (vsymmetry) {
                 ID = getID(D.locX, map_length - 1 - D.locY);
-            }
-            else {
+            } else {
                 ID = getID(map_length - 1 - D.locX, D.locY);
             }
+            
             Dual = resourceList.get(ID);
             int R = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);
             int Rdual = (Dual.locX - x)*(Dual.locX - x) + (Dual.locY - y)*(Dual.locY - y);

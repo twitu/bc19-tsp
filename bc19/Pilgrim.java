@@ -79,9 +79,8 @@ public class Pilgrim {
 
     // Bot AI
     public Action AI() {
-        this.me = robo.me;
-     
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y) + "status: "  + Integer.toString(status));
+        manager.update_data();
 
         if(status == 1){
             // move towards cluster
@@ -105,11 +104,7 @@ public class Pilgrim {
                 robo.log("found next step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
             }
-        }
-        
-        
-        
-        if (status == 0){
+        } else if (status == 0) {
             if(me.karbonite == 20 || me.fuel == 100){
                 //deposit
                 robo.log("returning");
@@ -121,6 +116,7 @@ public class Pilgrim {
                 Point next = manager.findNextStep(me.x,me.y,manager.copyMap(manager.passable_map),true,home);
                 robo.log("found next step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 if(next.x==home.x && next.y == home.y){
+                    // TODO: check with manager.me_location
                     next = manager.findEmptyNextAdj(home,new Point(me.x,me.y), MyRobot.four_directions);
                     robo.log("found updated step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 }
@@ -128,18 +124,22 @@ public class Pilgrim {
             } else {
                 //mine
                 if(me.x == mineLoc.x && me.y == mineLoc.y){
+                    // TODO: check visible robots and perform surveilance before mining
+                    for (Robot bot: manager.vis_robots) {
+                        if (bot.team != me.team) {
+                            // found enemy send signal
+                            // TODO: check type of enemy bot and respond accordingly
+                        }
+                    }
                     return robo.mine();
                 }
                 Point next = manager.findNextStep(me.x,me.y,manager.copyMap(manager.passable_map),true,mineLoc);
                 robo.log("found next step " + Integer.toString(next.x) + ", " + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
-                
-                
             }
             
         }
-        return null;
-        
-    }
 
+        return null;
+    }
 }

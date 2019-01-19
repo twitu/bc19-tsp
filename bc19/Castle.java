@@ -9,6 +9,7 @@ public class Castle {
     ResourceManager resData;
     
     // Self references
+    RefData refData;
     MyRobot robot;
     Robot me;
     Management manager;
@@ -35,6 +36,7 @@ public class Castle {
         this.me = robot.me;
         this.manager = robot.manager;
         this.radio = robot.radio;
+        this.refData = new RefData();
         robot.castleTalk(0);
         assigned_pilgrims = new ArrayList<>();
         assigned_depots = new ArrayList<>();
@@ -43,7 +45,7 @@ public class Castle {
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry);
-        depot_cluster = resData.resourceList;
+        depot_cluster = resData.homeClusters;
         cluster_count = depot_cluster.size();
         my_cluster_count = 0;
         robot.log("Castle: Map data acquired");
@@ -83,7 +85,7 @@ public class Castle {
         this.me = robot.me;
 
         manager.update_data();
-        
+
         // find closest depot
         if (cluster_count != 0) {
 
@@ -94,47 +96,61 @@ public class Castle {
                     cluster_count--;
                 }
             }
+        }
 
-            if(cluster_count > 0 ){
-                // choose cluster nearest to me
-                Cluster chosen_cluster = depot_cluster.get(resData.nearestClusterID(me.x, me.y, null));
-                 // robot.log("Castle:dd cluster" + Integer.toString(chosen_cluster.ClusterID) + "pos :" +Integer.toString(chosen_cluster.locX) + "  " + Integer.toString(chosen_cluster.locY) );
-    
-                // if closest_bot is me send pilgrim
-                if (chosen_cluster != null) {
-                    my_cluster.add(chosen_cluster);
-                    if(chosen_cluster.locX == me.x && chosen_cluster.locY == me.y){
-                        if(manager.buildable(robot.SPECS.PILGRIM)){
-                            Point p = manager.findEmptyAdj(me,true);
-                            Point nextP;
-                            if(p != null){
-                                if(fuelb){
-                                    nextP = fuel_depots.pollFirst();                                        
-                                }else{
-                                    nextP = karb_depots.pollFirst();
-                                    if(karb_depots.size()==0){
-                                        fuelb=true;
-                                    }
+        // check for enemy bots and attack before doing anything else
+        Robot closest = null;
+        int health = Integer.MAX_VALUE;
+        for (Robot bot: manager.vis_robots) {
+            if (bot.team != me.team && refData.in_attack_range(bot, me) && (bot.health < health)) {
+                    health = bot.health;
+                    closest = bot;
+            }
+        }
+        if (closest != null) {
+            return robot.attack(closest.x - me.x, closest.y - me.y);
+        }
+
+        if (cluster_count > 0 ) {
+            // choose cluster nearest to me
+            Cluster chosen_cluster = depot_cluster.get(resData.nearestClusterID(me.x, me.y, null));
+            // robot.log("Castle:dd cluster" + Integer.toString(chosen_cluster.ClusterID) + "pos :" +Integer.toString(chosen_cluster.locX) + "  " + Integer.toString(chosen_cluster.locY) );
+
+            // if closest_bot is me send pilgrim
+            if (chosen_cluster != null) {
+                my_cluster.add(chosen_cluster);
+                if(chosen_cluster.locX == me.x && chosen_cluster.locY == me.y){
+                    if(manager.buildable(robot.SPECS.PILGRIM)){
+                        Point p = manager.findEmptyAdj(me,true);
+                        Point nextP;
+                        if(p != null){
+                            if(fuelb){
+                                nextP = fuel_depots.pollFirst();                                        
+                            }else{
+                                nextP = karb_depots.pollFirst();
+                                if(karb_depots.size()==0){
+                                    fuelb=true;
                                 }
-                                robot.signal(robot.radio.assignDepot(nextP),2);
-                                assigned_depots.add(nextP);
-                                robot.log("Castle : assigning" + Integer.toString(nextP.x) + ", " + Integer.toString(nextP.y));
-                                // created = true;
-                                return robot.buildUnit(robot.SPECS.PILGRIM,p.x,p.y);
                             }
+                            robot.signal(robot.radio.assignDepot(nextP),2);
+                            assigned_depots.add(nextP);
+                            robot.log("Castle : assigning" + Integer.toString(nextP.x) + ", " + Integer.toString(nextP.y));
+                            // created = true;
+                            return robot.buildUnit(robot.SPECS.PILGRIM,p.x,p.y);
                         }
-                    }else{
-                        robot.signal(radio.baseAssignment(chosen_cluster.ClusterID, false), 2);
                     }
-                    robot.castleTalk(chosen_cluster.ClusterID);
-                    Point empty_adj = manager.findEmptyAdj(me, false);
-                    robot.log("castle test");
-                    // robot.log("Castle:dd empadj" + Integer.toString(empty_adj.x)+ ","  " + Integer.toString(empty_adj.y) );
-    
-               
-                    robot.log("building pilgrim at " + Integer.toString(me.signal));
-                    return robot.buildUnit(robot.SPECS.PILGRIM, empty_adj.x, empty_adj.y);
+                }else{
+                    robot.signal(radio.baseAssignment(chosen_cluster.ClusterID, false), 2);
                 }
+                robot.castleTalk(chosen_cluster.ClusterID);
+                Point empty_adj = manager.findEmptyAdj(me, false);
+                robot.log("castle test");
+                // robot.log("Castle:dd empadj" + Integer.toString(empty_adj.x)+ ","  " + Integer.toString(empty_adj.y) );
+
+                depot_cluster.remove(chosen_cluster);
+                cluster_count--;
+                robot.log("building pilgrim at " + Integer.toString(me.signal));
+                return robot.buildUnit(robot.SPECS.PILGRIM, empty_adj.x, empty_adj.y);
             }
         }
 
