@@ -129,7 +129,7 @@ public class Management {
     // Find next point to move to closest source in given list
     // choose r^2=4 moves when r_four is true
     public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, LinkedList<Point> src) {
-        Point current, next;
+        Point current, next = new Point(x, y);
         Point[] directions;
 
         directions = (r_four) ? MyRobot.four_directions : MyRobot.nine_directions;

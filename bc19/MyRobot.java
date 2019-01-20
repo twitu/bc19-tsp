@@ -67,21 +67,10 @@ public class MyRobot extends BCAbstractRobot {
         new Point(-2, -2)
     };
 
-    //*** Troop resource requirements */
-    // karbonite, fuel
-    public static int[][] requirements = {
-        {-1, -1},
-        {50, 200},
-        {10, 50},
-        {20, 50},
-        {25, 50},
-        {30, 50}
-    };
-
-    // attack troops pipeline
+    // Attack troops pipeline
     public static int[] tiger_squad = {
-        3, // crusader
-        4 // sniper
+        3,      // crusader
+        4       // sniper
     };
 
     ///*** Private Variables ***///
@@ -122,7 +111,7 @@ public class MyRobot extends BCAbstractRobot {
         // Select Unit type and AI
         switch (me.unit) {
             case 0:     return castle.AI();
-            // case 1:     return church.AI();
+            case 1:     return church.AI();
             case 2:     return pilgrim.AI();
             case 3:     return crusader.AI();
             case 4:     return prophet.AI();

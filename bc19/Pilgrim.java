@@ -6,7 +6,7 @@ import java.util.Arrays.*;
 import java.util.Arrays;
 import java.lang.*;
 
-//TODO: What to do if I find target cluster occupied?
+//TODO: Enemy Base present at build site. Then what?
 
 public class Pilgrim {
 
@@ -151,6 +151,11 @@ public class Pilgrim {
                         combat = true;
                         robo.signal(radio.emergency(new Point(bot.x, bot.y)), Cluster.range);
                     }
+                }
+                if ((bot.team == me.team) && (bot.signal % 16 == 5)) {
+                    noCombat = false;
+                    combat = true;
+                    break;
                 }
             }
             if (noCombat) {
