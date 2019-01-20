@@ -6,7 +6,6 @@ import java.util.Arrays.*;
 import java.util.Arrays;
 import java.lang.*;
 
-//TODO: What to do if base under attack and all resources dumped?
 //TODO: What to do if I find target cluster occupied?
 
 public class Pilgrim {
@@ -24,6 +23,7 @@ public class Pilgrim {
     int status, cluster_id;
     Point home, mineLoc;
     Cluster home_cluster;
+    boolean combat;
 
     // Initialization
     public Pilgrim(MyRobot robo) {
@@ -36,6 +36,7 @@ public class Pilgrim {
         
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
+        combat = false;
         robo.log("Pilgrim: Map data acquired");
 
         // Look for creator building and initialize status
@@ -96,8 +97,13 @@ public class Pilgrim {
         // Leader status. Go to cluster and build a base
         if(status == 1) {
             Point P = resData.getLocation(cluster_id);
+            
+            // Am I adjacent to the target?
             if (manager.isAdj(manager.me_location, P)) {
+                
+                // Enough Resources
                 if(manager.buildable(robo.SPECS.CHURCH)){
+                    
                     // Find nearest depot
                     int max_dist = Integer.MAX_VALUE;
                     mineLoc = home_cluster.karboPos.get(0);
@@ -108,16 +114,21 @@ public class Pilgrim {
                             mineLoc = T;
                         }
                     }
-                    // Build church and inform nearest depot
+                    
+                    // Build church, inform nearest depot and set worker status
                     robo.log("building @ " + Integer.toString(mineLoc.x) + " , " + Integer.toString(mineLoc.y));
                     robo.signal(radio.assignDepot(mineLoc),2);
                     home = P;
-                    status = 0;//miner
+                    status = 0;
                     return robo.buildUnit(robo.SPECS.CHURCH, P.x - me.x, P.y - me.y);
+                
+                // Need more resources
                 } else {
                     robo.log("Need more resources");
                     return null;
                 }
+
+            // No? I need to move to target
             } else {                          
                 Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, P);
                 robo.log("next is " + Integer.toString(next.x) + "," + Integer.toString(next.y));
@@ -130,67 +141,56 @@ public class Pilgrim {
 
         // Worker status. Resource collector
         } else if (status == 0) {
-            if(me.karbonite == 20 || me.fuel == 100){
-                // Deposit
+            
+            // Enemy Surveilance
+            boolean noCombat = true;
+            for (Robot bot: manager.vis_robots) {
+                if (bot.team != me.team) {
+                    noCombat = false;
+                    if (!combat) {
+                        combat = true;
+                        robo.signal(radio.emergency(new Point(bot.x, bot.y)), Cluster.range);
+                    }
+                }
+            }
+            if (noCombat) {
+                combat = false;
+            }
+            
+            // Am I in combat mode or carrying full capacity?
+            if((me.karbonite == 20 || me.fuel == 100) || (combat && (me.karbonite != 0 || me.fuel != 0))){
+                
+                // Deposit resources if adjacent to home
                 robo.log("returning");
                 if(manager.isAdj(new Point(me.x,me.y),home)){
                     robo.log("depositing");
                     return robo.give(home.x - me.x , home.y - me.y, me.karbonite, me.fuel);
                 }
                 
+                // Not adjacent? Go home
                 Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, home);
                 if(next.x == home.x && next.y == home.y){
                     next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions);
                 }
                 robo.log("found next step " + Integer.toString(next.x) + "," + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
+
+            // No? Gather resources
             } else {
-                // Mine
+
+                // On a depot? Mine then
                 if(me.x == mineLoc.x && me.y == mineLoc.y){
-                    // Enemy Surveilance
-                    for (Robot bot: manager.vis_robots) {
-                        if (bot.team != me.team) {
-                            status = 2;
-                            robo.signal(radio.emergency(new Point(bot.x, bot.y)), Cluster.range);
-                        }
-                    }
                     return robo.mine();
                 }
+
+                // Not on depot. Go to depot
                 Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, mineLoc);
                 robo.log("found next step " + Integer.toString(next.x) + "," + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
             }
-            
-        // Emergency status. Base under attack
-        } else if (status == 2) {
-            // Check if defense successful
-            status = 1;
-            for (Robot bot: manager.vis_robots) {
-                if (bot.team != me.team) {
-                    status = 2;
-                }
-            }
-
-            // Deposit all resources
-            if ((me.karbonite != 0) || (me.fuel != 0)) {
-                robo.log("returning");
-                if(manager.isAdj(new Point(me.x,me.y),home)){
-                    robo.log("depositing");
-                    return robo.give(home.x - me.x , home.y - me.y, me.karbonite, me.fuel);
-                }
-                
-                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, home);
-                if(next.x == home.x && next.y == home.y){
-                    next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions);
-                }
-                robo.log("found next step " + Integer.toString(next.x) + "," + Integer.toString(next.y));
-                return robo.move(next.x - me.x, next.y - me.y);
-
-            } else {
-                return null;
-            }
         }
-
+        
+        // In case I get confused, sit tight
         return null;
     }
 }

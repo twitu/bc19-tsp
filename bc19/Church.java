@@ -20,7 +20,7 @@ public class Church {
     // Private Variables
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
-    boolean fuelCap, karbCap, created;
+    boolean fuelCap, karbCap, combat, created;
     ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     Point nextP;
@@ -41,6 +41,7 @@ public class Church {
 
         // Initialize church
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
+        combat = false;
         created = false;
         manager.updateData();
         
@@ -96,12 +97,31 @@ public class Church {
         this.me = robo.me;
         manager.updateData();
 
-        // Check for enemies
-        for (Robot r: manager.vis_robots){
-            if(r.team != me.team){
-                // TODO: Ramble and Scramble: Enemy detected!
-                robo.signal(r.unit, 1);
+        // Check for enemies and broadcast if under attack
+        boolean noCombat = true;
+        for (Robot bot: manager.vis_robots){
+            if (bot.team != me.team) {
+                noCombat = false;
+                if (!combat) {
+                    combat = true;
+                    robo.signal(radio.emergency(new Point(bot.x, bot.y)), Cluster.range);
+                }
+                break;
             }
+            if ((bot.team == me.team) && (bot.signal % 16 == 5)) {
+                Point enemy_loc = new Point(-1, -1);
+                enemy_loc.x = bot.signal/1024;
+                enemy_loc.y = (bot.signal % 1024)/16;
+                noCombat = false;
+                if (!combat) {
+                    combat = true;
+                    robo.signal(radio.emergency(new Point(bot.x, bot.y)), Cluster.range);
+                }
+                break;
+            }
+        }
+        if (noCombat) {
+            combat = false;
         }
 
         // TODO: Pilgrim Tacking: Keep track of pilgrims
@@ -135,7 +155,7 @@ public class Church {
                         karbCap = true;
                     }
                 } else {
-                    // TODO: Cluster Active Check: Inform Castle
+                    // TODO: Castle Correspondence
                     return null;
                 }
                 robo.signal(robo.radio.assignDepot(nextP), 2);
