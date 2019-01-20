@@ -44,4 +44,9 @@ public class Comms {
         return (p.x*1024 + p.y*16 + 4);
     }
 
+    // LSB code :5 . clear path to move @ dest P
+    public int emergency(Point p){
+        return (p.x*1024 + p.y*16 + 5);
+    }
+
 }

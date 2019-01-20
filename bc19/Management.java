@@ -19,7 +19,7 @@ public class Management {
     //  Point findEmptyNextAdj(Point dest, Point src, Point[] moves);
     //  boolean buildable(int type);
     //  boolean checkBounds(int x, int y);
-    //  Point oppPoint(int x, int y); returns the symmetrically opposite point
+    //  Point oppPoint(int x, int y);
     //
     ///*** END ***///
 
@@ -46,7 +46,7 @@ public class Management {
         karbo_map = robo.getKarboniteMap();
         map_length = passable_map.length;
         vsymmetry = mapVsym();
-        update_data();
+        updateData();
     }
 
     // Determine map symmetry
@@ -74,7 +74,7 @@ public class Management {
     ///*** Helper functions ***///
 
     // Update all turn related data
-    public void update_data() {
+    public void updateData() {
         this.me = robo.me;
         vis_robot_map = robo.getVisibleRobotMap();
         vis_robots = robo.getVisibleRobots();
@@ -133,6 +133,13 @@ public class Management {
         Point[] directions;
 
         directions = (r_four) ? MyRobot.four_directions : MyRobot.nine_directions;
+        for (int i = 0; i < map_length; i++) {
+            for (int j = 0; j < map_length; j++) {
+                if (vis_robot_map[i][j] > 0) {
+                    map[i][j] = false;
+                }
+            }
+        }
 
         robo.log("finding next point for path x: " + Integer.toString(x) + " y: " + Integer.toString(y));
         while (!src.isEmpty()) {
@@ -141,35 +148,6 @@ public class Management {
                 next = new Point(current.x + p.x, current.y + p.y);
                 if (next.x >= 0 && next.x < map_length && next.y >= 0 && next.y < map_length) {
                     if (next.x == x && next.y == y) {
-                        return current;
-                    } else {
-                        if (map[next.y][next.x] == true) {
-                            map[next.y][next.x] = false;
-                            src.add(next);
-                        } 
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    // Find next point to move to closest source in given list
-    // choose r^2=4 moves when r_four is true
-    public Point findNextStep(Point check, boolean[][] map, boolean r_four, LinkedList<Point> src) {
-        Point current, next;
-        Point[] directions;
-
-        directions = (r_four) ? MyRobot.four_directions : MyRobot.nine_directions;
-
-        robo.log("finding next point for path x: " + Integer.toString(x) + " y: " + Integer.toString(y));
-        while (!src.isEmpty()) {
-            current = src.pollFirst();
-            for (Point p: directions) {
-                next = new Point(current.x + p.x, current.y + p.y);
-                if (next.x >= 0 && next.x < map_length && next.y >= 0 && next.y < map_length) {
-                    if (next.x == check.x && next.y == check.y) {
                         return current;
                     } else {
                         if (map[next.y][next.x] == true) {
@@ -213,10 +191,12 @@ public class Management {
 
     // Find point adjacent to destination that is within given set of moves
     public Point findEmptyNextAdj(Point dest, Point src, Point[] moves) {
-        Point temp;
         for (Point p: moves) {
-            temp = new Point(src.x + p.x, src.y + p.y);
-            if (checkBounds(temp.x, temp.y) && passable_map[temp.y][temp.x] && (vis_robot_map[temp.y][temp.x] <= 0) && isAdj(temp, dest)) {
+            Point temp = new Point(src.x + p.x, src.y + p.y);
+            if (!checkBounds(temp.x, temp.y)) {
+                continue;
+            }
+            if (isAdj(temp, dest) && passable_map[temp.y][temp.x] && vis_robot_map[temp.y][temp.x] <= 0) {
                 return temp;
             }
         }
@@ -228,23 +208,23 @@ public class Management {
         if(type == 0){//castle
             return false;
         }else if(type == 1){//church
-            if (robo.karbonite > 50 && robo.fuel > 100){
+            if (robo.karbonite >= 50 && robo.fuel >= 100){
                 return true;
             } else return false;
         }else if(type == 2){//pilgrim
-            if (robo.karbonite > 10 && robo.fuel > 50){
+            if (robo.karbonite >= 10 && robo.fuel >= 50){
                 return true;
             } else return false;
         }else if(type == 3){//crusader
-            if (robo.karbonite > 20 && robo.fuel > 50){
+            if (robo.karbonite >= 20 && robo.fuel >= 50){
                 return true;
             } else return false;
         }else if(type == 4){//prophet
-            if (robo.karbonite > 25 && robo.fuel > 50){
+            if (robo.karbonite >= 25 && robo.fuel >= 50){
                 return true;
             } else return false;
         }else if(type == 5){//preacher
-            if (robo.karbonite > 30 && robo.fuel > 50){
+            if (robo.karbonite >= 30 && robo.fuel >= 50){
                 return true;
             } else return false;
         }else{//default
@@ -261,6 +241,7 @@ public class Management {
         }
     }
 
+    // Return symmetrically opposite point
     public Point oppPoint(int x, int y) {
         int oppx, oppy;
         if (vsymmetry) {

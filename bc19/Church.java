@@ -17,6 +17,14 @@ public class Church {
     Management manager;
     Comms radio;
 
+    // Private Variables
+    LinkedList<Point> fuel_depots;
+    LinkedList<Point> karb_depots;
+    boolean fuelCap, karbCap, created;
+    ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
+    ArrayList<Point> assigned_depots = new ArrayList<>();
+    Point nextP;
+
     // Initialization
     public Church(MyRobot robo) {
 
@@ -31,68 +39,72 @@ public class Church {
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         robo.log("Church: Map data acquired");
 
+        // Initialize church
+        robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
+        created = false;
+        manager.updateData();
+        
+        // Record resource point locations
+        Cluster D = resData.resourceList.get(resData.getID(me.x, me.y));
+        fuel_depots = new LinkedList<>(D.fuelPos);
+        karb_depots = new LinkedList<>(D.karboPos);
+        if (fuel_depots.size() == 0) {
+            fuelCap = true;
+        } else {
+            fuelCap = false;
+        }
+        if (karb_depots.size() == 0) {
+            karbCap = true;
+        } else {
+            karbCap = false;
+        }
+
+        // Record depot of first pilgrim
+        for(Robot r: manager.vis_robots){
+            if(robo.isRadioing(r)){
+                if(r.signal % 16 == 3){
+                    Point m = decodes3(r.signal);
+                    if(manager.karbo_map[m.y][m.x]){
+                        for (Point p: karb_depots) {
+                            if ((p.x == m.x) && (p.y == m.y)) {
+                                karb_depots.remove(p);
+                                break;
+                            }
+                        }
+                        assigned_pilgrims.add(r.id);
+                        assigned_depots.add(m);
+                    }
+                    if(manager.fuel_map[m.y][m.x]){
+                        for (Point p: fuel_depots) {
+                            if ((p.x == m.x) && (p.y == m.y)) {
+                                fuel_depots.remove(p);
+                                break;
+                            }
+                        }
+                        assigned_pilgrims.add(r.id);
+                        assigned_depots.add(m);
+                    }
+                }
+            }
+        }
+
     }
 
     // Bot AI
     public Action AI() {
+        
         this.me = robo.me;
-        LinkedList<Point> fuel_depots,karb_depots = new LinkedList<>();
-        boolean fuelb,created;
-        ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
-        ArrayList<Point> assigned_depots = new ArrayList<>();
-        Point nextP;
-     
-        if(robo.me.turn == 1){
-            //initialize church
+        manager.updateData();
 
-            robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
-            fuelb = false;
-            // created = false;
-
-            for (int i = 0; i < manager.fuel_map.length; i++) {
-                for (int j = 0; j < manager.fuel_map[i].length; j++) {
-                    if (manager.fuel_map[i][j]) {
-                        fuel_depots.add(new Point(j, i));
-                    }
-                    if (manager.karbo_map[i][j]) {
-                        karb_depots.add(new Point(j, i));
-                    }
-                }
-            }
-
-            // record depot of first pilgrim
-            manager.update_data();
-            for(Robot r: manager.vis_robots){
-                if(robo.isRadioing(r)){
-                    if(r.signal%16 == 3){
-                        Point m = decodes3(r.signal);
-                        if(manager.karbo_map[m.y][m.x]){
-                            karb_depots.remove(m);
-                            assigned_pilgrims.add(r.id);
-                            assigned_depots.add(m);
-                        }
-                        if(manager.fuel_map[m.y][m.x]){
-                            fuel_depots.remove(m);
-                            assigned_pilgrims.add(r.id);
-                            assigned_depots.add(m);
-                        }
-                    }
-                }
-            }
-        }
-
-
-        //check for enemies
-        manager.update_data();
-
-        for(Robot r: manager.vis_robots){
+        // Check for enemies
+        for (Robot r: manager.vis_robots){
             if(r.team != me.team){
-                //enemy detected!
-                robo.signal(r.unit,1);
+                // TODO: Ramble and Scramble: Enemy detected!
+                robo.signal(r.unit, 1);
             }
         }
 
-        // keep track of pilgrims
+        // TODO: Pilgrim Tacking: Keep track of pilgrims
         // if(created){
         //     for(Robot r: manager.vis_robots){
         //         if(r.signal_radius < 3 && r.unit == robo.SPECS.PILGRIM){
@@ -108,31 +120,38 @@ public class Church {
         //     }            
         // }
 
-        // produce pilgrims
-        if(manager.buildable(robo.SPECS.PILGRIM)){
-            Point p = manager.findEmptyAdj(me,true);
+        // Produce pilgrims
+        if(manager.buildable(robo.SPECS.PILGRIM)) {
+            Point p = manager.findEmptyAdj(me, true);
             if(p != null){
-                if(fuelb){
+                if ((karbCap) && (!fuelCap)) {
                     nextP = fuel_depots.pollFirst();                                        
-                }else{
+                    if(fuel_depots.size()==0){
+                        fuelCap = true;
+                    }
+                } else if (!karbCap){
                     nextP = karb_depots.pollFirst();
                     if(karb_depots.size()==0){
-                        fuelb=true;
+                        karbCap = true;
                     }
+                } else {
+                    // TODO: Cluster Active Check: Inform Castle
+                    return null;
                 }
-                robo.signal(robo.radio.assignDepot(nextP),2);
+                robo.signal(robo.radio.assignDepot(nextP), 2);
                 assigned_depots.add(nextP);
-                // created = true;
-                return robo.buildUnit(robo.SPECS.PILGRIM,p.x,p.y);
+                // TODO: Pilgrim Tracking: created = true;
+                return robo.buildUnit(robo.SPECS.PILGRIM, p.x, p.y);
             }
         }
         return null;
     }
 
+    // Decode first location
     public Point decodes3(int signal){
-        Point p = new Point(1,1);
+        Point p = new Point(-1, -1);
         p.x = signal/1024;
-        p.y = (signal%1024)/16;
+        p.y = (signal % 1024)/16;
         return p;
     }
 
