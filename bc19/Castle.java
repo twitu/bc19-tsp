@@ -10,7 +10,7 @@ public class Castle {
     
     // Self references
     RefData refData;
-    MyRobot robot;
+    MyRobot robo;
     Robot me;
     Management manager;
     Comms radio;
@@ -19,11 +19,11 @@ public class Castle {
     ArrayList<Robot> castle_pos;
     ArrayList<Cluster> depot_cluster;
     ArrayList<Cluster> my_cluster;
-    int cluster_count, my_cluster_count;
+    int cluster_count, my_cluster_count,id,counter;
     ArrayList<Integer> avoid_clusters;
     boolean preserve_resources,self;
+    Cluster chosen_cluster;
 
-    LinkedList<Point> fuel_depots, karb_depots;
     boolean fuelb;
     ArrayList<Integer> assigned_pilgrims;
     ArrayList<Point> assigned_depots ;
@@ -43,6 +43,7 @@ public class Castle {
         my_cluster = new ArrayList<>(); 
         avoid_clusters = new ArrayList<>();
         self = false;
+        counter=0;
                 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
@@ -60,12 +61,14 @@ public class Castle {
             }
         }
 
-        int id = resData.nearestClusterID(me.x, me.y, avoid_clusters);
+        id = resData.nearestClusterID(me.x, me.y, avoid_clusters);
         avoid_clusters.add(id);
-        Cluster chosen_cluster = depot_cluster.get(id);
+        chosen_cluster = resData.resourceList.get(id);
+        robo.log("chosen_cluster " + Integer.toString(id));
         if(chosen_cluster.locX == me.x && chosen_cluster.locY == me.y){
             self = true;
         }
+        robo.castleTalk(chosen_cluster.ClusterID*16 + 10);
         cluster_count--;
 
         fuelb = false;
@@ -85,34 +88,33 @@ public class Castle {
         this.me = robo.me;
 
         manager.updateData();
+        robo.castleTalk(0);
 
         // find closest depot
         if (cluster_count != 0) {
 
             // remove any clusters that have been claimed
             for (Robot bot: manager.vis_robots) {
-                if (bot.castle_talk %16 == 0 && bot.id != me.id) {
+                if (bot.castle_talk %16 == 10 && bot.id != me.id && bot.team == me.team) {
                     // depot_cluster.remove(bot.castle_talk);
+                    robo.log("avoid cluster@" + Integer.toString(bot.castle_talk/16));
                     avoid_clusters.add(bot.castle_talk/16);
                     cluster_count--;
                 }
             }
-        }
 
-        // check for enemy bots and attack before doing anything else
-        Robot closest = null;
-        int health = Integer.MAX_VALUE;
-        for (Robot bot: manager.vis_robots) {
-            if (bot.team != me.team && refData.in_attack_range(bot, me) && (bot.health < health)) {
-                    health = bot.health;
-                    closest = bot;
-            }
-        }
-        if (closest != null) {
-            return robo.attack(closest.x - me.x, closest.y - me.y);
-        }
-
-        if (cluster_count > 0 ) {
+        // // check for enemy bots and attack before doing anything else
+        // Robot closest = null;
+        // int health = Integer.MAX_VALUE;
+        // for (Robot bot: manager.vis_robots) {
+        //     if (bot.team != me.team && refData.in_attack_range(bot, me) && (bot.health < health)) {
+        //             health = bot.health;
+        //             closest = bot;
+        //     }
+        // }
+        // if (closest != null) {
+        //     return robo.attack(closest.x - me.x, closest.y - me.y);
+        // }
             // choose cluster nearest to me
             //if not assigning to castle cluster
             // if(!self){
@@ -134,15 +136,28 @@ public class Castle {
                         Point nextP;
                         if(p != null){
                             if(fuelb){
-                                nextP = fuel_depots.pollFirst();  
-                                if(fuel_depots.size()==0){
+                                nextP = chosen_cluster.fuelPos.get(counter);  
+                                counter++;  
+                                if(chosen_cluster.fuelPos.size()==counter){
                                     self=false;
+                                    fuelb = false;
+                                    counter = 0;
+                                    id = resData.nearestClusterID(me.x, me.y, avoid_clusters);
+                                    avoid_clusters.add(id);
+                                    chosen_cluster = resData.resourceList.get(id);
+                                    robo.log("chosen_cluster " + Integer.toString(id));
+                                    if(chosen_cluster.locX == me.x && chosen_cluster.locY == me.y){
+                                        self = true;
+                                    }
+                                    cluster_count--;
                                 }                                      
                             }else{
-                                nextP = karb_depots.pollFirst();
-                                if(karb_depots.size()==0){
-                                    fuelb=true;
-                                }
+                                nextP = chosen_cluster.karboPos.get(counter);
+                                counter++;  
+                                if(chosen_cluster.karboPos.size()==counter){
+                                    fuelb = true;
+                                    counter = 0;
+                                }     
                             }
                             robo.signal(robo.radio.assignDepot(nextP),2);
                             assigned_depots.add(nextP);
@@ -152,28 +167,17 @@ public class Castle {
                         }
                     }
                 }else{
+                    robo.log("not self");
                     if(manager.buildable(robo.SPECS.PILGRIM)){
                         Point p = manager.findEmptyAdj(me,true);
-                        Point nextP;
                         if(p != null){
-                            if(fuelb){
-                                nextP = fuel_depots.pollFirst();  
-                                if(fuel_depots.size()==0){
-                                    self=false;
-                                }                                      
-                            }else{
-                                nextP = karb_depots.pollFirst();
-                                if(karb_depots.size()==0){
-                                    fuelb=true;
-                                }
-                            }
                             id = resData.nearestClusterID(me.x, me.y, avoid_clusters);
                             avoid_clusters.add(id);
-                            Cluster chosen_cluster = depot_cluster.get(id);
+                            chosen_cluster = resData.resourceList.get(id);
                             if(chosen_cluster.locX == me.x && chosen_cluster.locY == me.y){
                                 self = true;
                             }
-                            robo.castleTalk(chosen_cluster.ClusterID);
+                            robo.castleTalk(chosen_cluster.ClusterID*16 + 10);
                             robo.signal(radio.baseAssignment(chosen_cluster.ClusterID, false), 2);
                             cluster_count--;
                             robo.log("Castle : assigning cluster :" + Integer.toString(chosen_cluster.locX) + ", " + Integer.toString(chosen_cluster.locY));
@@ -229,22 +233,22 @@ public class Castle {
 
         // all clusters allocated
         // start creating a squad
-        int unit_number = 0;
-        int[] unit_req = MyRobot.requirements[MyRobot.tiger_squad[unit_number]];
-        // if preserve preserve resources for atleast one church
-        if (preserve_resources) {
-            int [] church_req = MyRobot.requirements[robo.SPECS.CHURCH];
-            if (!((church_req[0] + unit_req[0]) >= robo.karbonite && (church_req[1] + unit_req[1] >= robo.fuel))) {
-                return null;
-            }
-        }
+        // int unit_number = 0;
+        // int[] unit_req = RefData.requirements[MyRobot.tiger_squad[unit_number]];
+        // // if preserve preserve resources for atleast one church
+        // if (preserve_resources) {
+        //     int [] church_req = RefData.requirements[robo.SPECS.CHURCH];
+        //     if (!((church_req[0] + unit_req[0]) >= robo.karbonite && (church_req[1] + unit_req[1] >= robo.fuel))) {
+        //         return null;
+        //     }
+        // }
 
-        // create new unit if resources exists
-        int unit_type = MyRobot.tiger_squad[unit_number];
-        Point emptyadj = manager.findEmptyAdj(me, false);
-        unit_number = (unit_number++) % MyRobot.tiger_squad.length;
-        robo.log("unit type: " + Integer.toString(MyRobot.tiger_squad[unit_number]));
-        return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+        // // create new unit if resources exists
+        // int unit_type = MyRobot.tiger_squad[unit_number];
+        // Point emptyadj = manager.findEmptyAdj(me, false);
+        // unit_number = (unit_number++) % MyRobot.tiger_squad.length;
+        // robo.log("unit type: " + Integer.toString(MyRobot.tiger_squad[unit_number]));
+        // return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
         
     }
 
