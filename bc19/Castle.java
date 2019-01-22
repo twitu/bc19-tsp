@@ -15,17 +15,18 @@ public class Castle {
     Comms radio;
 
     // Church extended Private Variables
+    public static int[] emergencyFund = {50, 200};
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
     boolean fuelCap, karbCap, combat;
     ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     Point nextP;
+    int unit_no;
 
     // Castle Variables
     ArrayList<Integer> castleClusters = new ArrayList<>();
     RefData refdata;
-    int unit_no;
 
     // Initialization
     public Castle(MyRobot robo) {
@@ -156,8 +157,7 @@ public class Castle {
         // If enough resources available, build a tiger squad
         int unit_type = MyRobot.tiger_squad[unit_no];
         int[] unit_req = RefData.requirements[unit_type];
-        int[] church_req = RefData.requirements[robo.SPECS.CHURCH];
-        if ((church_req[0] + unit_req[0]) <= robo.karbonite && (church_req[1] + unit_req[1] <= robo.fuel)) {
+        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
             Point emptyadj = manager.findEmptyAdj(me, false);
             unit_no = (++unit_no) % MyRobot.tiger_squad.length;
             robo.log("unit type: " + Integer.toString(MyRobot.tiger_squad[unit_no]));
@@ -167,7 +167,7 @@ public class Castle {
         // TODO: Eco Combat Balancing
         // If not, send a colonist pilgrim to an inactive base.
         unit_req = RefData.requirements[robo.SPECS.PILGRIM];
-        if ((church_req[0] + unit_req[0]) <= robo.karbonite && (church_req[1] + unit_req[1] <= robo.fuel)
+        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)
         && resData.targets.size() != 0) {
             int baseID = resData.nextTargetID(me.x, me.y);
             robo.signal(radio.baseAssignment(baseID, false), 2);

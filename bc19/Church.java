@@ -18,12 +18,14 @@ public class Church {
     Comms radio;
 
     // Private Variables
+    public static int[] emergencyFund = {50, 200};
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
     boolean fuelCap, karbCap, combat;
     ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     Point nextP;
+    int unit_no;
 
     // Initialization
     public Church(MyRobot robo) {
@@ -42,6 +44,7 @@ public class Church {
         // Initialize church
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
         combat = false;
+        unit_no = 0;
         manager.updateData();
         
         // Record resource point locations
@@ -126,23 +129,8 @@ public class Church {
         }
 
         // TODO: Pilgrim Tacking: Keep track of pilgrims
-        // if(created){
-        //     for(Robot r: manager.vis_robots){
-        //         if(r.signal_radius < 3 && r.unit == robo.SPECS.PILGRIM){
-        //             if(robo.isRadioing(r)){
-        //                 if(r.signal == robo.radio.assignDepot(nextP)){
-        //                     assigned_pilgrims.add(r.id);
-        //                     assigned_depots.add(nextP);
-        //                     created = false;
-        //                     break;
-        //                 }
-        //             }
-        //         }                                
-        //     }            
-        // }
-
         // Produce pilgrims
-        if(manager.buildable(robo.SPECS.PILGRIM)) {
+        if ((manager.buildable(robo.SPECS.PILGRIM)) && (!fuelCap || !karbCap)) {
             Point p = manager.findEmptyAdj(me, true);
             if(p != null){
                 
@@ -159,10 +147,6 @@ public class Church {
                     if(karb_depots.size()==0){
                         karbCap = true;
                     }
-
-                // Base producing at max capacity. Sit tight
-                } else {
-                    return null;
                 }
 
                 // Send the broadcast and build the unit
@@ -170,6 +154,16 @@ public class Church {
                 assigned_depots.add(nextP);
                 return robo.buildUnit(robo.SPECS.PILGRIM, p.x, p.y);
             }
+        }
+
+        // Set up defences
+        int unit_type = MyRobot.tiger_squad[unit_no];
+        int[] unit_req = RefData.requirements[unit_type];
+        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
+            Point emptyadj = manager.findEmptyAdj(me, false);
+            unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+            robo.log("unit type: " + Integer.toString(MyRobot.tiger_squad[unit_no]));
+            return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
         }
 
         // If confused, sit tight
