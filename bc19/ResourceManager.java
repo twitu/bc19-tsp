@@ -154,7 +154,9 @@ public class ResourceManager {
 
     // Mark cluster as assigned
     public void targetAssigned(int ID) {
-        targets.remove(Integer.valueOf(ID));
+        if (targets.contains(ID)) {
+            targets.remove(Integer.valueOf(ID));
+        }
     }
 
     // Add a target cluster

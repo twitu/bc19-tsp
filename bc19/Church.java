@@ -87,6 +87,7 @@ public class Church {
         
         this.me = robo.me;
         manager.updateData();
+        robo.castleTalk(radio.baseID(resData.getID(me.x, me.y)));
 
         // Check for enemies and broadcast if under attack
         boolean noCombat = true;
