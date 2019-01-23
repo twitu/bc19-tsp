@@ -18,12 +18,12 @@ public class Comms {
     }
 
     ///*** Communication encoder functions ***///
-    // LSB code: 0, 1. Tell unit to set its base ID to given ID. 1 for emergency
-    public int baseAssignment(int ID, boolean emergency) {
+    // LSB code: 0, 1. Tell unit to set its base id to given id. 1 for emergency
+    public int baseAssignment(int id, boolean emergency) {
         if (emergency) {
-            return (ID * 16);
+            return (id * 16);
         } else {
-            return (ID * 16 + 1);
+            return (id * 16 + 1);
         }
     }
 
@@ -45,6 +45,16 @@ public class Comms {
     // LSB code: 5. Base under attack
     public int emergency(Point p){
         return (p.x*1024 + p.y*16 + 5);
+    }
+    
+    // LSB code: 6. Base under attack
+    public int assignGaurd(Point p){
+        return (p.x*1024 + p.y*16 + 6);
+    }
+
+    // LSB code: 7. Base under attack
+    public int prophetMark(int id){
+        return ((id - 1)*16 + 7);
     }
 
     ///*** CastleTalk encoder functions ***///

@@ -6,17 +6,16 @@ public class Prophet {
 
     // Map data
     ResourceManager resData;
-    boolean type; // church type false, castle type = true
-    Point home_castle, enemy_castle, home_church;
     
     // Self references
     MyRobot robo;
     Robot me;
     Management manager;
-    CombatManager combat;
     Comms radio;
-    int status;
-    Point dest;
+
+    // Private Variables
+    RefData refdata;
+    int mark;
 
     // Initialization
     public Prophet(MyRobot robo) {
@@ -26,69 +25,67 @@ public class Prophet {
         this.me = robo.me;
         this.manager = robo.manager;
         this.radio = robo.radio;
-        this.combat = new CombatManager();
-        this.dest = null;
         manager.updateData();
-        status = 0;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
+        refdata = new RefData();
+        mark = -1;
         robo.log("Prophet: Map data acquired");
 
-        // find nearby church or castle
-        for (Point p: MyRobot.adj_directions) {
-            Robot bot;
-            if (manager.vis_robot_map[p.x + me.x][p.y + me.y] > 0) {
-                bot = robo.getRobot(manager.vis_robot_map[p.x + me.x][p.y + me.y]);
-                if (bot.unit == robo.SPECS.CASTLE) {
-                    home_castle = new Point(bot.x, bot.y);
-                    enemy_castle = manager.oppPoint(bot.x, bot.y);
-                    type = true;
-                    if (robo.isRadioing(bot) && bot.signal%16 == 2) {
-                        status = 1;
-                        dest = new Point(bot.signal/1024, (bot.signal%1024)/16);
-                    }
-                    break;
-                } else if (bot.unit == robo.SPECS.CHURCH) {
-                    home_church = new Point(bot.x, bot.y);
-                    type = false;
-                    if (robo.isRadioing(bot) && bot.signal%16 == 2) {
-                        status = 1;
-                        dest = new Point(bot.signal/1024, (bot.signal%1024)/16);
-                    }
-                    break;
-                }
-            }
-        }
-
-        if (dest != null) {
-            robo.log("Current destination " + Integer.toString(dest.x) + " " + Integer.toString(dest.y));
-        }
     }
 
     // Bot AI
     public Action AI() {
-        robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
+        
+        this.me = robo.me;
         manager.updateData();
-
-        // status 1 move to target location
-        if (status == 1) {
-            LinkedList<Point> src = new LinkedList<>();
-            src.add(dest);
-            Point next = manager.findNextStep(manager.me_location.x, manager.me_location.y, manager.copyMap(manager.passable_map), true, src);
-            if (next.x == dest.x && next.y == dest.y) {
-                robo.log("reaching destination");
-                status = 0;
+        robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
+        
+        // Check for currently marked target
+        for (Robot bot: manager.vis_robots) {
+            int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
+            if ((bot.id == mark) && refdata.in_attack_range(bot, me) && dist >= 16) {
+                return robo.attack(bot.x - me.x, bot.y - me.y);
             }
-            return robo.move(next.x - me.x, next.y - me.y);
-        } else if (status == 0) {
-            // scan for enemies
-            Point retreat = combat.preacherRetreat(manager.vis_robots, robo);
-            if (retreat != null) {
-                return robo.move(retreat.x - me.x, retreat.y - me.y);
-            }
-            Robot next_enemy = combat.preacherChooseBestEnemy(manager.vis_robots, robo);
-            return robo.attack(next_enemy.x - me.x, next_enemy.y - me.y);
         }
+
+        // Marked target not in range? Listen to broadcast for nearby marks
+        for (Robot bot: manager.vis_robots) {
+            if (bot.signal % 16 == 7) {
+                mark = (((bot.signal - 7) /16) + 1);
+                break;
+            }
+        }
+
+        // Check for newly marked target
+        for (Robot bot: manager.vis_robots) {
+            int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
+            if ((bot.id == mark) && refdata.in_attack_range(bot, me) && dist >= 16) {
+                return robo.attack(bot.x - me.x, bot.y - me.y);
+            }
+        }
+        
+        // Check for enemy bots and attack and mark if enemy in range
+        Robot closest = null;
+        int max_dist = Integer.MAX_VALUE;
+        for (Robot bot: manager.vis_robots) {
+            if (!robo.isVisible(bot)) {
+                continue;
+            }
+            int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
+            if (bot.team != me.team && refdata.in_attack_range(bot, me) && (dist >= 16) && (dist < max_dist)) {
+                    max_dist = dist;
+                    closest = bot;
+            }
+        }
+        if (closest != null) {
+            mark = closest.id;
+            robo.signal(radio.prophetMark(mark), 4);
+            return robo.attack(closest.x - me.x, closest.y - me.y);
+        }
+
+        // Nothing to do
+        return null;
     }
 }

@@ -96,6 +96,11 @@ public class Church {
         boolean noCombat = true;
         for (Robot bot: manager.vis_robots){
             
+            // Avoid enemy comms jamming
+            if (!robo.isVisible(bot)) {
+                continue;
+            }
+            
             // Enemy in sight?
             if (bot.team != me.team) {
                 noCombat = false;
@@ -123,9 +128,6 @@ public class Church {
         // Defense successful? Then go to normal mode but be alert. Also tell castle
         if (noCombat) {
             combat = false;
-            robo.castleTalk(1);
-        } else {
-            robo.castleTalk(2);
         }
 
         // TODO: Pilgrim Tacking: Keep track of pilgrims
@@ -162,7 +164,6 @@ public class Church {
         if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
             Point emptyadj = manager.findEmptyAdj(me, false);
             unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-            robo.log("unit type: " + Integer.toString(MyRobot.tiger_squad[unit_no]));
             return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
         }
 

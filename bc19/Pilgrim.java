@@ -52,10 +52,6 @@ public class Pilgrim {
                             mineLoc.y = (ch_sig % 1024)/16;
                             status = 0;//miner
                             home = new Point(bot.x, bot.y);
-                            robo.log("Pilgrim initialized status: " + Integer.toString(status)
-                             + " mineloc: " + Integer.toString(mineLoc.x) + ","
-                             + Integer.toString(mineLoc.y) + " home: "
-                             + Integer.toString(home.x) + "," + Integer.toString(home.y));
                             break;
                         }
                     }
@@ -67,16 +63,11 @@ public class Pilgrim {
                             mineLoc.y = (bot.signal % 1024)/16;
                             home = new Point(bot.x, bot.y);
                             status = 0;
-                            robo.log("Pilgrim initialized status: " + Integer.toString(status)
-                             + " mineloc: " + Integer.toString(mineLoc.x) + ","
-                             + Integer.toString(mineLoc.y) + " home: "
-                             + Integer.toString(home.x) + "," + Integer.toString(home.y));
                             break;
                         } else if ((bot.signal % 16 == 0) || (bot.signal % 16 == 1)) {
                             cluster_id = bot.signal/16;
                             home_cluster = resData.resourceList.get(cluster_id);
                             status = 1;//go to cluster
-                            robo.log("Pilgrim initialized status: " + Integer.toString(status));
                             break;
                         }
                     }
@@ -91,8 +82,6 @@ public class Pilgrim {
         
         this.me = robo.me;
         manager.updateData();
-        robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y)
-         + " status: "  + Integer.toString(status));
         
         // Leader status. Go to cluster and build a base
         if(status == 1) {
@@ -116,7 +105,6 @@ public class Pilgrim {
                     }
                     
                     // Build church, inform nearest depot and set worker status
-                    robo.log("building @ " + Integer.toString(mineLoc.x) + " , " + Integer.toString(mineLoc.y));
                     robo.signal(radio.assignDepot(mineLoc),2);
                     home = P;
                     status = 0;
@@ -131,11 +119,9 @@ public class Pilgrim {
             // No? I need to move to target
             } else {                          
                 Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, P);
-                robo.log("next is " + Integer.toString(next.x) + "," + Integer.toString(next.y));
                 if ((next.x == P.x) &&(next.y == P.y)){
                     next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
                 }
-                robo.log("found next step " + Integer.toString(next.x) + "," + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
             }
 
@@ -145,6 +131,9 @@ public class Pilgrim {
             // Enemy Surveilance
             boolean noCombat = true;
             for (Robot bot: manager.vis_robots) {
+                if (!robo.isVisible(bot)) {
+                    continue;
+                }
                 if (bot.team != me.team) {
                     noCombat = false;
                     if (!combat) {
@@ -166,9 +155,7 @@ public class Pilgrim {
             if((me.karbonite == 20 || me.fuel == 100) || (combat && (me.karbonite != 0 || me.fuel != 0))){
                 
                 // Deposit resources if adjacent to home
-                robo.log("returning");
                 if(manager.isAdj(new Point(me.x,me.y),home)){
-                    robo.log("depositing");
                     return robo.give(home.x - me.x , home.y - me.y, me.karbonite, me.fuel);
                 }
                 
@@ -177,7 +164,6 @@ public class Pilgrim {
                 if(next.x == home.x && next.y == home.y){
                     next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions);
                 }
-                robo.log("found next step " + Integer.toString(next.x) + "," + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
 
             // No? Gather resources
@@ -190,7 +176,6 @@ public class Pilgrim {
 
                 // Not on depot. Go to depot
                 Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, mineLoc);
-                robo.log("found next step " + Integer.toString(next.x) + "," + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
             }
         }

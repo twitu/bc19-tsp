@@ -69,8 +69,8 @@ public class MyRobot extends BCAbstractRobot {
 
     // Attack troops pipeline
     public static int[] tiger_squad = {
-        4,      // sniper
-        5       // tank
+        5,      // tank
+        4       // sniper
     };
 
     ///*** Private Variables ***///

@@ -139,7 +139,7 @@ public class ResourceManager {
 
     // Get the next cluster to target
     public int nextTargetID(int x, int y) {
-        int dist, out, max_dist = Integer.MAX_VALUE;
+        int dist, out = Integer.MAX_VALUE, max_dist = Integer.MAX_VALUE;
         for (int i: targets) {
             Cluster D = resourceList.get(i);
             dist = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);

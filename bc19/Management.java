@@ -141,7 +141,6 @@ public class Management {
             }
         }
 
-        robo.log("finding next point for path x: " + Integer.toString(x) + " y: " + Integer.toString(y));
         while (!src.isEmpty()) {
             current = src.pollFirst();
             for (Point p: directions) {

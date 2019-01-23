@@ -22,7 +22,7 @@ public class Castle {
     ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     Point nextP;
-    int unit_no;
+    int unit_no, mark;
 
     // Castle Variables
     ArrayList<Integer> castleClusters = new ArrayList<>();
@@ -47,6 +47,7 @@ public class Castle {
         // Initialize castle
         combat = false;
         unit_no = 0;
+        mark = -1;
         manager.updateData();
         
         // Record resource point locations
@@ -70,6 +71,11 @@ public class Castle {
         boolean noCombat = true;
         for (Robot bot: manager.vis_robots){
             
+            // Avoid being jammed by comms
+            if (!robo.isVisible(bot)) {
+                continue;
+            }
+
             // Enemy in sight?
             if (bot.team != me.team) {
                 noCombat = false;
@@ -114,16 +120,29 @@ public class Castle {
             }
         }
 
+         // Check for currently marked target
+         for (Robot bot: manager.vis_robots) {
+            if ((bot.id == mark) && refdata.in_attack_range(bot, me)) {
+                return robo.attack(bot.x - me.x, bot.y - me.y);
+            }
+        }
+
         // Check for enemy bots and attack if enemy in range
         Robot closest = null;
-        int health = Integer.MAX_VALUE;
+        int max_dist = Integer.MAX_VALUE;
         for (Robot bot: manager.vis_robots) {
-            if (bot.team != me.team && refdata.in_attack_range(bot, me) && (bot.health < health)) {
-                    health = bot.health;
+            if (!robo.isVisible(bot)) {
+                continue;
+            }
+            int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
+            if (bot.team != me.team && refdata.in_attack_range(bot, me) && (dist < max_dist)) {
+                    max_dist = dist;
                     closest = bot;
             }
         }
         if (closest != null) {
+            mark = closest.id;
+            robo.signal(radio.prophetMark(mark), 4);
             return robo.attack(closest.x - me.x, closest.y - me.y);
         }
 
@@ -160,7 +179,6 @@ public class Castle {
         if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
             Point emptyadj = manager.findEmptyAdj(me, false);
             unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-            robo.log("unit type: " + Integer.toString(MyRobot.tiger_squad[unit_no]));
             return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
         }
 
