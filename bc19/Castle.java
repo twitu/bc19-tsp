@@ -12,6 +12,7 @@ public class Castle {
     MyRobot robo;
     Robot me;
     Management manager;
+    CombatManager combat_manager;
     Comms radio;
 
     // Church extended Private Variables
@@ -34,6 +35,7 @@ public class Castle {
         // Store self references
         this.robo = robo;
         this.me = robo.me;
+        this.combat_manager = robo.combat_manager;
         this.manager = robo.manager;
         this.radio = robo.radio;
 
@@ -55,7 +57,8 @@ public class Castle {
         Cluster D = resData.resourceList.get(resData.getID(me.x, me.y));
         fuel_depots = new LinkedList<>(D.fuelPos);
         karb_depots = new LinkedList<>(D.karboPos);
-        fuelCap = (fuel_depots.size() == 0) ? true : false;
+        fuelCap = true;//fuel off by default
+        // fuelCap = (fuel_depots.size() == 0) ? true : false;
         karbCap = (karb_depots.size() == 0) ? true : false;
     
     }
@@ -120,30 +123,45 @@ public class Castle {
             }
         }
 
-         // Check for currently marked target
-         for (Robot bot: manager.vis_robots) {
+        // Check for currently marked target
+        for (Robot bot: manager.vis_robots) {
             if ((bot.id == mark) && refdata.in_attack_range(bot, me)) {
                 return robo.attack(bot.x - me.x, bot.y - me.y);
             }
         }
 
         // Check for enemy bots and attack if enemy in range
-        Robot closest = null;
+        Robot closest,prophet = null;
         int max_dist = Integer.MAX_VALUE;
         for (Robot bot: manager.vis_robots) {
             if (!robo.isVisible(bot)) {
                 continue;
             }
             int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
-            if (bot.team != me.team && refdata.in_attack_range(bot, me) && (dist < max_dist)) {
-                    max_dist = dist;
-                    closest = bot;
+            if (dist < max_dist) {
+                max_dist = dist;
+                if(bot.team != me.team && refdata.in_attack_range(bot, me)){
+                closest = bot;
+                } 
+                if((bot.team == me.team) && bot.unit == robo.SPECS.PROPHET){
+                    prophet = bot;
+                }
             }
         }
         if (closest != null) {
             mark = closest.id;
-            robo.signal(radio.prophetMark(mark), 4);
+            if(prophet == null){
+                Point p = manager.findEmptyAdj(me,false);
+                robo.signal(radio.prophetMark(mark), 3);
+                return robo.buildUnit(robo.SPECS.PROPHET,p.x,p.y);
+            }
+            robo.signal(radio.prophetMark(mark), prophet.signal_radius);
             return robo.attack(closest.x - me.x, closest.y - me.y);
+        }
+
+        //turn on fuel mining after sending for inactive bases
+        if(resData.targets.size()==0){
+            fuelCap = (fuel_depots.size() == 0) ? true : false;
         }
 
         // Produce pilgrims if not producing at full capacity
@@ -173,18 +191,9 @@ public class Castle {
             }
         }
 
-        // If enough resources available, build a tiger squad
-        int unit_type = MyRobot.tiger_squad[unit_no];
-        int[] unit_req = RefData.requirements[unit_type];
-        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
-            Point emptyadj = manager.findEmptyAdj(me, false);
-            unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-            return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-        }
-
         // TODO: Eco Combat Balancing
         // If not, send a colonist pilgrim to an inactive base.
-        unit_req = RefData.requirements[robo.SPECS.PILGRIM];
+        int[] unit_req = RefData.requirements[robo.SPECS.PILGRIM];
         if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)
         && resData.targets.size() != 0) {
             int baseID = resData.nextTargetID(me.x, me.y);
@@ -193,6 +202,17 @@ public class Castle {
             Point E = manager.findEmptyAdj(me, false);
             return robo.buildUnit(robo.SPECS.PILGRIM, E.x, E.y);
         }
+
+        // If enough resources available, build a tiger squad
+        int unit_type = MyRobot.tiger_squad[unit_no];
+        unit_req = RefData.requirements[unit_type];
+        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
+            Point emptyadj = manager.findEmptyAdj(me, false);
+            unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+            robo.signal(radio.stepsToEnemy(3),2);
+            return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+        }
+
 
         // Nothing to do
         return null;

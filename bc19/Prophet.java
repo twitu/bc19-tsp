@@ -11,11 +11,16 @@ public class Prophet {
     MyRobot robo;
     Robot me;
     Management manager;
+    CombatManager combat_manager;
     Comms radio;
 
     // Private Variables
     RefData refdata;
     int mark;
+    int status;
+    Point home_castle;
+    Point enemy_castle;
+    int initial_move_count;
 
     // Initialization
     public Prophet(MyRobot robo) {
@@ -23,6 +28,7 @@ public class Prophet {
         // Store self references
         this.robo = robo;
         this.me = robo.me;
+        this.combat_manager = robo.combat_manager;
         this.manager = robo.manager;
         this.radio = robo.radio;
         manager.updateData();
@@ -33,6 +39,21 @@ public class Prophet {
         mark = -1;
         robo.log("Prophet: Map data acquired");
 
+        // Am I a castle gaurd?
+        status = 0;
+        for (Point p: MyRobot.adj_directions) {
+            if (manager.getRobotIdMap(me.x + p.x, me.y + p.y) > 0) {
+                Robot bot = robo.getRobot(manager.getRobotIdMap(me.x + p.x, me.y + p.y));
+                if (bot.unit == robo.SPECS.CASTLE && robo.isRadioing(bot)) {
+                    home_castle = new Point(bot.x, bot.y);
+                    enemy_castle = manager.oppPoint(bot.x, bot.y);
+                    status = 1;
+                    if (bot.signal%16 == 8) {
+                        initial_move_count = bot.signal/16;
+                    }
+                }
+            }
+        }
     }
 
     // Bot AI
@@ -83,6 +104,25 @@ public class Prophet {
             mark = closest.id;
             robo.signal(radio.prophetMark(mark), 4);
             return robo.attack(closest.x - me.x, closest.y - me.y);
+        }
+
+        if (initial_move_count > 0) {
+            initial_move_count--;
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
+            if (manager.getRobotIdMap(next.x, next.y) > 0) {
+                next = manager.findEmptyAdj(next, false);
+            }
+
+            return robo.move(next.x - me.x, next.y - me.y);
+        }
+        if (combat_manager.findSwarmed(robo)) {
+            // move toward enemy castle one step if to many allies
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
+            if (manager.getRobotIdMap(next.x, next.y) > 0) {
+                next = manager.findEmptyAdj(next, false);
+            }
+
+            return robo.move(next.x - me.x, next.y - me.y);            
         }
 
         // Nothing to do

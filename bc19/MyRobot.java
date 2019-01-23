@@ -84,6 +84,7 @@ public class MyRobot extends BCAbstractRobot {
     ///*** Helpers ***///
     public Management manager;
     public Comms radio;
+    public CombatManager combat_manager;
 
     ///*** Main Code ***///
     public Action turn() {
@@ -92,6 +93,7 @@ public class MyRobot extends BCAbstractRobot {
         if (me.turn == 1) {
             manager = new Management(this);
             radio = new Comms(this);
+            combat_manager = new CombatManager(this);
             switch (me.unit) {
                 case 0: castle = new Castle(this);
                         break;

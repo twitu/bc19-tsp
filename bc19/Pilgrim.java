@@ -17,19 +17,23 @@ public class Pilgrim {
     MyRobot robo;
     Robot me;
     Management manager;
+    CombatManager combat_manager;
     Comms radio;
 
     // Private variables
+    public static int[] emergencyFund = {30, 20};
     int status, cluster_id;
     Point home, mineLoc;
     Cluster home_cluster;
-    boolean combat;
+    boolean combat,emergency;
+    RefData refdata = new RefData();
 
     // Initialization
     public Pilgrim(MyRobot robo) {
         // Store self references
         this.robo = robo;
         this.me = robo.me;
+        this.combat_manager = robo.combat_manager;
         this.manager = robo.manager;
         this.radio = robo.radio;
         manager.updateData();
@@ -37,12 +41,13 @@ public class Pilgrim {
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         combat = false;
+        emergency = false;
         robo.log("Pilgrim: Map data acquired");
 
         // Look for creator building and initialize status
         for (Point p: MyRobot.adj_directions) {
-            if (manager.vis_robot_map[me.y + p.y][me.x + p.x] > 0) {
-                Robot bot = robo.getRobot(manager.vis_robot_map[me.y + p.y][me.x + p.x]);
+            if (manager.getRobotIdMap(me.x + p.x, me.y + p.y) > 0) {
+                Robot bot = robo.getRobot(manager.getRobotIdMap(me.x + p.x, me.y + p.y));
                 if (bot.unit == robo.SPECS.CHURCH) {
                     if(robo.isRadioing(bot)){//check for assign depot signal
                         int ch_sig = bot.signal;
@@ -67,7 +72,9 @@ public class Pilgrim {
                         } else if ((bot.signal % 16 == 0) || (bot.signal % 16 == 1)) {
                             cluster_id = bot.signal/16;
                             home_cluster = resData.resourceList.get(cluster_id);
+                            home = resData.getLocation(cluster_id);
                             status = 1;//go to cluster
+
                             break;
                         }
                     }
@@ -91,7 +98,8 @@ public class Pilgrim {
             if (manager.isAdj(manager.me_location, P)) {
                 
                 // Enough Resources
-                if(manager.buildable(robo.SPECS.CHURCH)){
+                int[] unit_req = RefData.requirements[robo.SPECS.CHURCH];
+                if((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)){
                     
                     // Find nearest depot
                     int max_dist = Integer.MAX_VALUE;
@@ -112,8 +120,24 @@ public class Pilgrim {
                 
                 // Need more resources
                 } else {
-                    robo.log("Need more resources");
-                    return null;
+                    int max_dist = Integer.MAX_VALUE;
+                    mineLoc = home_cluster.karboPos.get(0);
+                    for (Point T : home_cluster.karboPos) {
+                        int dist = (T.x - me.x)*(T.x - me.x) + (T.y - me.y)*(T.y - me.y);
+                        if (dist < max_dist) {
+                            max_dist = dist;
+                            mineLoc = T;
+                        }
+                    }
+
+                    robo.log("Need more resources - mining stead");
+                    home = P;
+                    status = 0;
+                    Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, mineLoc);
+                    if(next == null){
+                        return null;
+                    }
+                    return robo.move(next.x - me.x, next.y - me.y);
                 }
 
             // No? I need to move to target
@@ -150,19 +174,32 @@ public class Pilgrim {
             if (noCombat) {
                 combat = false;
             }
+
+            if((robo.karbonite < emergencyFund[0] || robo.fuel < emergencyFund[1]) && me.turn < 100){
+                emergency = true;
+            }
             
             // Am I in combat mode or carrying full capacity?
-            if((me.karbonite == 20 || me.fuel == 100) || (combat && (me.karbonite != 0 || me.fuel != 0))){
+            if((me.karbonite == 20 || me.fuel == 100) || (combat && (me.karbonite != 0 || me.fuel != 0)) || (emergency && (me.karbonite >= 10 || me.fuel >= 50))){
                 
                 // Deposit resources if adjacent to home
                 if(manager.isAdj(new Point(me.x,me.y),home)){
-                    return robo.give(home.x - me.x , home.y - me.y, me.karbonite, me.fuel);
+                    emergency = false;
+                    Robot r = robo.getRobot(manager.getRobotIdMap(home.x, home.y));
+                    if(r!=null && (r.unit==robo.SPECS.CASTLE || r.unit==robo.SPECS.CHURCH) && r.team == me.team){
+                        return robo.give(home.x - me.x , home.y - me.y, me.karbonite, me.fuel);
+                    }
+                    robo.signal(radio.assignDepot(mineLoc),2);
+                    return robo.buildUnit(robo.SPECS.CHURCH, home.x-me.x, home.y-me.y);
                 }
                 
                 // Not adjacent? Go home
                 Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, home);
                 if(next.x == home.x && next.y == home.y){
                     next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions);
+                    if(next == null){//maybe starvation
+                        return null;
+                    }
                 }
                 return robo.move(next.x - me.x, next.y - me.y);
 

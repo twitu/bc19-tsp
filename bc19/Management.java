@@ -20,6 +20,7 @@ public class Management {
     //  boolean buildable(int type);
     //  boolean checkBounds(int x, int y);
     //  Point oppPoint(int x, int y);
+    //  Point findOffsetClosest(Point src, int range, Point dest, int offset)
     //
     ///*** END ***///
 
@@ -191,7 +192,7 @@ public class Management {
     // Find point adjacent to destination that is within given set of moves
     public Point findEmptyNextAdj(Point dest, Point src, Point[] moves) {
         for (Point p: moves) {
-            Point temp = new Point(src.x + p.x, src.y + p.y);
+            Point temp = src.add(p);
             if (!checkBounds(temp.x, temp.y)) {
                 continue;
             }
@@ -254,4 +255,31 @@ public class Management {
         return new Point(oppx, oppy);
     }
 
+    Point findOffsetClosest(Point src, int range, Point dest, int offset, boolean[][] passable_map) {
+        LinkedList<Point> queue = new LinkedList<>();
+        queue.add(dest);
+
+        Point current, next_move;
+        while (!queue.isEmpty()) {
+            current = queue.pollFirst();
+            for (Point p: MyRobot.adj_directions) {
+                next_move = current.add(p);
+                if (next_move.dist(dest) >= offset) {
+                    return next_move;
+                }
+                if (passable_map[next_move.y][next_move.x] && next_move.dist(src) <= range) {
+                    passable_map[next_move.y][next_move.x] = false;
+                    queue.add(next_move);
+                }
+            }
+        }
+        return null;
+    }
+
+    public int getRobotIdMap(int x, int y) {
+        if (x >= 0 && x < map_length && y >= 0 && y < map_length) {
+            return vis_robot_map[y][x];
+        }
+        return -1;
+    }
 }

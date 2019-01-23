@@ -15,10 +15,11 @@ public class Church {
     MyRobot robo;
     Robot me;
     Management manager;
+    CombatManager combat_manager;
     Comms radio;
 
     // Private Variables
-    public static int[] emergencyFund = {50, 200};
+    public static int[] emergencyFund = {30, 20};
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
     boolean fuelCap, karbCap, combat;
@@ -33,6 +34,7 @@ public class Church {
         // Store self references
         this.robo = robo;
         this.me = robo.me;
+        this.combat_manager = robo.combat_manager;
         this.manager = robo.manager;
         this.radio = robo.radio;
 
@@ -130,9 +132,14 @@ public class Church {
             combat = false;
         }
 
+        
+
+
         // TODO: Pilgrim Tacking: Keep track of pilgrims
         // Produce pilgrims
-        if ((manager.buildable(robo.SPECS.PILGRIM)) && (!fuelCap || !karbCap)) {
+        int[] unit_req = RefData.requirements[robo.SPECS.PILGRIM];
+        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)
+         && (!fuelCap || !karbCap)) {
             Point p = manager.findEmptyAdj(me, true);
             if(p != null){
                 
@@ -158,11 +165,15 @@ public class Church {
             }
         }
 
+
         // Set up defences
         int unit_type = MyRobot.tiger_squad[unit_no];
-        int[] unit_req = RefData.requirements[unit_type];
+        unit_req = RefData.requirements[unit_type];
         if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
             Point emptyadj = manager.findEmptyAdj(me, false);
+            if(emptyadj == null){
+                return null;
+            }
             unit_no = (++unit_no) % MyRobot.tiger_squad.length;
             return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
         }

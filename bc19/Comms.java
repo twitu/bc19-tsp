@@ -57,6 +57,11 @@ public class Comms {
         return ((id - 1)*16 + 7);
     }
 
+    // LSB code: 8. Move n steps towards enemy castle
+    public int stepsToEnemy(int steps){
+        return ((steps)*16 + 8);
+    }
+
     ///*** CastleTalk encoder functions ***///
     // LSB code: 3'b001. Own base id. I am here and okay
     public int baseID(int id) {

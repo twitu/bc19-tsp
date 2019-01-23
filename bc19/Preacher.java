@@ -4,19 +4,6 @@ import java.util.ArrayList;
 
 public class Preacher {
 
-    // AOE
-    public static Point[] aoe = {
-        new Point(0, 1),
-        new Point(1, 1),
-        new Point(1, 0),
-        new Point(1, -1),
-        new Point(0, -1),
-        new Point(-1, -1),
-        new Point(-1, 0),
-        new Point(-1, 1),
-        new Point(0, 0)
-    };
-
     // Map data
     ResourceManager resData;
     
@@ -24,12 +11,15 @@ public class Preacher {
     MyRobot robo;
     Robot me;
     Management manager;
+    CombatManager combat_manager;
     Comms radio;
 
     // Private Variables
     RefData refdata;
-    boolean castle_gaurd;
-    Point gaurd_loc;
+    int status;
+    Point guard_loc;
+    int initial_move_count;
+    Point home_castle, enemy_castle;
 
     // Initialization
     public Preacher(MyRobot robo) {
@@ -39,25 +29,34 @@ public class Preacher {
         this.me = robo.me;
         this.manager = robo.manager;
         this.radio = robo.radio;
+        this.combat_manager = robo.combat_manager;
+        this.initial_move_count = 0;
+        this.home_castle = null;
+        this.enemy_castle = null;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
         refdata = new RefData();
-        gaurd_loc = new Point(me.x, me.y);
+        guard_loc = new Point(me.x, me.y);
         manager.updateData();
         robo.log("Preacher: Map data acquired");
 
         // Am I a castle gaurd?
-        castle_gaurd = false;
+        status = 0;
         for (Point p: MyRobot.adj_directions) {
+            if (!manager.checkBounds(me.x + p.x, me.y + p.y)) continue;
             if (manager.vis_robot_map[me.y + p.y][me.x + p.x] > 0) {
                 Robot bot = robo.getRobot(manager.vis_robot_map[me.y + p.y][me.x + p.x]);
-                if (bot.unit == robo.SPECS.CASTLE) {
-                    castle_gaurd = true;
+                if (bot.unit == robo.SPECS.CASTLE && robo.isRadioing(bot)) {
+                    home_castle = new Point(bot.x, bot.y);
+                    enemy_castle = manager.oppPoint(bot.x, bot.y);
+                    status = 1;
+                    if (bot.signal%16 == 8) {
+                        initial_move_count = bot.signal/16;
+                    }
                 }
             }
         }
-
     }
 
     // Bot AI
@@ -67,51 +66,34 @@ public class Preacher {
         manager.updateData();
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
         
-        // If not castle gaurd, listen to broadcast and get gaurd location
-        for (Robot bot: manager.vis_robots) {
-            if ((bot.team == me.team) && (bot.signal % 16 == 6)) {
-                gaurd_loc.x = bot.signal/1024;
-                gaurd_loc.y = (bot.signal % 1024)/16;
-                break;
-            }
+
+        // Get enemy list in range, identify target and attack if valid
+        Point target = combat_manager.preacherTarget();
+        if (target != null) {
+            return robo.attack(target.x - me.x, target.y - me.y);            
         }
 
-        // Get enemy list in range and identify target
-        Point target = new Point(0, 0);
-        int min_score = 0;
-        for (Robot bot: manager.vis_robots) {
-            if (!robo.isVisible(bot)) {
-                continue;
+        // move specified number of steps toward enemy castle
+        if (initial_move_count > 0) {
+            initial_move_count--;
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
+            if (manager.vis_robot_map[next.y][next.x] > 0) {
+                next = manager.findEmptyAdj(next, false);
             }
-            if ((bot.team != me.team) && (refdata.in_attack_range(bot, me))) {
-                for (Point p: aoe) {
-                    int dist = (me.x - bot.x - p.x)*(me.x - bot.x - p.x) + (me.y - bot.y - p.y)*(me.y - bot.y - p.y);
-                    if (dist > RefData.atk_range[robo.SPECS.PREACHER]) {
-                        continue;
-                    }
-                    int score = 0;
-                    for (Point q: aoe) {
-                        if ((manager.vis_robot_map[bot.y + p.y + q.y][bot.x + p.x + q.x]) > 0) {
-                            Robot adj_bot = robo.getRobot(manager.vis_robot_map[bot.y + p.y + q.y][bot.x + p.x + q.x]);
-                            score += ((adj_bot.team == me.team) ? -1: 1);
-                        }
-                    }
-                    if (score >= min_score) {
-                        min_score = score;
-                        target.x = bot.x + p.x;
-                        target.y = bot.y + p.y;
-                    }
-                }
+
+            return robo.move(next.x - me.x, next.y - me.y);
+        }
+        if (combat_manager.findSwarmed(robo)) {
+            // move toward enemy castle one step if to many allies
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
+            if (manager.vis_robot_map[next.y][next.x] > 0) {
+                next = manager.findEmptyAdj(next, false);
             }
+
+            return robo.move(next.x - me.x, next.y - me.y);            
         }
 
-        // Attack if valid target exists
-        if (min_score > 0) {
-            return robo.attack(target.x - me.x, target.y - me.y);
-        }
-
+        // If confused sit tight
         return null;
-
     }
-
 }
