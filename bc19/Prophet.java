@@ -20,6 +20,7 @@ public class Prophet {
     int status;
     Point home_castle;
     Point enemy_castle;
+    Point guard_loc;
     int initial_move_count;
 
     // Initialization
@@ -31,6 +32,7 @@ public class Prophet {
         this.combat_manager = robo.combat_manager;
         this.manager = robo.manager;
         this.radio = robo.radio;
+        this.guard_loc = null;
         manager.updateData();
 
         // Process and store depot clusters
@@ -41,16 +43,19 @@ public class Prophet {
 
         // Am I a castle gaurd?
         status = 0;
-        for (Point p: MyRobot.adj_directions) {
-            if (manager.getRobotIdMap(me.x + p.x, me.y + p.y) > 0) {
-                Robot bot = robo.getRobot(manager.getRobotIdMap(me.x + p.x, me.y + p.y));
-                if (bot.unit == robo.SPECS.CASTLE && robo.isRadioing(bot)) {
-                    home_castle = new Point(bot.x, bot.y);
-                    enemy_castle = manager.oppPoint(bot.x, bot.y);
-                    status = 1;
-                    if (bot.signal%16 == 8) {
-                        initial_move_count = bot.signal/16;
-                    }
+        initial_move_count = 0;
+        Robot base = combat_manager.baseCastleChurch();
+        if (base != null && robo.isRadioing(base)) {
+            if (base.unit == robo.SPECS.CASTLE) {
+                home_castle = new Point(base.x, base.y);
+                enemy_castle = manager.oppPoint(base.x, base.y);
+                status = 1;
+                if (base.signal%16 == 8) {
+                    initial_move_count = radio.decodeStepsToEnemy(base.signal);
+                }
+            } else {
+                if (base.signal%16 == 2) {
+                    guard_loc = radio.decodeTargetLocation(base.signal);
                 }
             }
         }
@@ -106,6 +111,13 @@ public class Prophet {
             return robo.attack(closest.x - me.x, closest.y - me.y);
         }
 
+        // if guard location is given move towards guard location
+        if (guard_loc != null) {
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, guard_loc);
+            return robo.move(next.x - me.x, next.y - me.y);
+        }
+
+        // while initial moves move towards castle
         if (initial_move_count > 0) {
             initial_move_count--;
             Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
@@ -115,13 +127,11 @@ public class Prophet {
 
             return robo.move(next.x - me.x, next.y - me.y);
         }
+
+        // current swarm is hard coded to 6
         if (combat_manager.findSwarmed(robo)) {
             // move toward enemy castle one step if to many allies
-            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
-            if (manager.getRobotIdMap(next.x, next.y) > 0) {
-                next = manager.findEmptyAdj(next, false);
-            }
-
+            Point next = manager.findEmptyAdj(manager.me_location, false);
             return robo.move(next.x - me.x, next.y - me.y);            
         }
 

@@ -62,6 +62,25 @@ public class Comms {
         return ((steps)*16 + 8);
     }
 
+    ///*** Communication decoder functions ***///
+    // Decode first location
+    public Point decodes3(int signal){
+        Point p = new Point(-1, -1);
+        p.x = signal/1024;
+        p.y = (signal % 1024)/16;
+        return p;
+    }
+
+    // Decode LSB code: 8. Move n steps towards enemy castle
+    public int decodeStepsToEnemy(int signal){
+        return signal/16;
+    }
+
+    // Decode LSB code: 8. target location
+    public Point decodeTargetLocation(int signal){
+        return new Point(signal/1024, (signal % 1024)/16);
+    }
+
     ///*** CastleTalk encoder functions ***///
     // LSB code: 3'b001. Own base id. I am here and okay
     public int baseID(int id) {

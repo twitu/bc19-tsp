@@ -17,6 +17,7 @@ public class Crusader {
     // Private variables
     Point home_castle, enemy_castle;
     int status, initial_move_count;
+    Point guard_loc;
 
     // Initialization
     public Crusader(MyRobot robo) {
@@ -29,6 +30,7 @@ public class Crusader {
         this.enemy_castle = null;
         this.combat_manager = combat_manager;
         this.radio = robo.radio;
+        this.guard_loc = null;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
@@ -37,16 +39,18 @@ public class Crusader {
         // Am I a castle gaurd?
         status = 0;
         initial_move_count = 0;
-        for (Point p: MyRobot.adj_directions) {
-            if (manager.getRobotIdMap(me.x + p.x, me.y + p.y) > 0) {
-                Robot bot = robo.getRobot(manager.getRobotIdMap(me.x + p.x, me.y + p.y));
-                if (bot.unit == robo.SPECS.CASTLE && robo.isRadioing(bot)) {
-                    home_castle = new Point(bot.x, bot.y);
-                    enemy_castle = manager.oppPoint(bot.x, bot.y);
-                    status = 1;
-                    if (bot.signal%16 == 8) {
-                        initial_move_count = bot.signal/16;
-                    }
+        Robot base = combat_manager.baseCastleChurch();
+        if (base != null && robo.isRadioing(base)) {
+            if (base.unit == robo.SPECS.CASTLE) {
+                home_castle = new Point(base.x, base.y);
+                enemy_castle = manager.oppPoint(base.x, base.y);
+                status = 1;
+                if (base.signal%16 == 8) {
+                    initial_move_count = radio.decodeStepsToEnemy(base.signal);
+                }
+            } else {
+                if (base.signal%16 == 2) {
+                    guard_loc = radio.decodeTargetLocation(base.signal);
                 }
             }
         }
@@ -57,6 +61,12 @@ public class Crusader {
 
         this.me = robo.me;
         manager.updateData();
+
+        // if guard location is given move towards guard location
+        if (guard_loc != null) {
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, guard_loc);
+            return robo.move(next.x - me.x, next.y - me.y);
+        }
 
         if (initial_move_count > 0) {
             initial_move_count--;
@@ -70,11 +80,7 @@ public class Crusader {
 
         if (combat_manager.findSwarmed(robo)) {
             // move toward enemy castle one step if to many allies
-            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
-            if (manager.getRobotIdMap(next.x, next.y) > 0) {
-                next = manager.findEmptyAdj(next, false);
-            }
-
+            Point next = manager.findEmptyAdj(manager.me_location, false);
             return robo.move(next.x - me.x, next.y - me.y);            
         }
 

@@ -17,9 +17,9 @@ public class Preacher {
     // Private Variables
     RefData refdata;
     int status;
-    Point guard_loc;
     int initial_move_count;
     Point home_castle, enemy_castle;
+    Point guard_loc;
 
     // Initialization
     public Preacher(MyRobot robo) {
@@ -30,30 +30,31 @@ public class Preacher {
         this.manager = robo.manager;
         this.radio = robo.radio;
         this.combat_manager = robo.combat_manager;
-        this.initial_move_count = 0;
         this.home_castle = null;
         this.enemy_castle = null;
+        this.guard_loc = null;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
         refdata = new RefData();
-        guard_loc = new Point(me.x, me.y);
         manager.updateData();
         robo.log("Preacher: Map data acquired");
 
         // Am I a castle gaurd?
         status = 0;
-        for (Point p: MyRobot.adj_directions) {
-            if (!manager.checkBounds(me.x + p.x, me.y + p.y)) continue;
-            if (manager.vis_robot_map[me.y + p.y][me.x + p.x] > 0) {
-                Robot bot = robo.getRobot(manager.vis_robot_map[me.y + p.y][me.x + p.x]);
-                if (bot.unit == robo.SPECS.CASTLE && robo.isRadioing(bot)) {
-                    home_castle = new Point(bot.x, bot.y);
-                    enemy_castle = manager.oppPoint(bot.x, bot.y);
-                    status = 1;
-                    if (bot.signal%16 == 8) {
-                        initial_move_count = bot.signal/16;
-                    }
+        initial_move_count = 0;
+        Robot base = combat_manager.baseCastleChurch();
+        if (base != null && robo.isRadioing(base)) {
+            if (base.unit == robo.SPECS.CASTLE) {
+                home_castle = new Point(base.x, base.y);
+                enemy_castle = manager.oppPoint(base.x, base.y);
+                status = 1;
+                if (base.signal%16 == 8) {
+                    initial_move_count = radio.decodeStepsToEnemy(base.signal);
+                }
+            } else {
+                if (base.signal%16 == 2) {
+                    guard_loc = radio.decodeTargetLocation(base.signal);
                 }
             }
         }
@@ -73,6 +74,12 @@ public class Preacher {
             return robo.attack(target.x - me.x, target.y - me.y);            
         }
 
+        // if guard location is given move towards guard location
+        if (guard_loc != null) {
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, guard_loc);
+            return robo.move(next.x - me.x, next.y - me.y);
+        }
+
         // move specified number of steps toward enemy castle
         if (initial_move_count > 0) {
             initial_move_count--;
@@ -85,11 +92,7 @@ public class Preacher {
         }
         if (combat_manager.findSwarmed(robo)) {
             // move toward enemy castle one step if to many allies
-            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
-            if (manager.vis_robot_map[next.y][next.x] > 0) {
-                next = manager.findEmptyAdj(next, false);
-            }
-
+            Point next = manager.findEmptyAdj(manager.me_location, false);
             return robo.move(next.x - me.x, next.y - me.y);            
         }
 

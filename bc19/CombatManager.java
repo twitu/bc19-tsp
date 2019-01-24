@@ -7,6 +7,7 @@ public class CombatManager {
     MyRobot robo;
     Robot me;
     RefData refdata;
+    Management manager;
 
     // AOE
     public static Point[] aoe = {
@@ -24,7 +25,22 @@ public class CombatManager {
     public CombatManager(MyRobot robo) {
         this.refdata = new RefData();
         this.robo = robo;
-        this.me = me;                        
+        this.me = robo.me; 
+        this.manager = robo.manager;                       
+    }
+
+    public Robot baseCastleChurch() {
+        for (Point p: MyRobot.adj_directions) {
+            Point adj = p.add(manager.me_location);
+            int bot_id = manager.getRobotIdMap(adj.x, adj.y);
+            if (bot_id > 0) {
+                Robot bot = robo.getRobot(bot_id);
+                if (bot.unit == robo.SPECS.CHURCH || bot.unit == robo.SPECS.CASTLE) {
+                    return bot;
+                }
+            }
+        }
+        return null;
     }
 
     public Point preacherRetreat(Robot[] visRobots, MyRobot robo) {
