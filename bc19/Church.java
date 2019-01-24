@@ -22,8 +22,9 @@ public class Church {
     public static int[] emergencyFund = {30, 20};
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
-    boolean fuelCap, karbCap, combat;
-    ArrayList<Integer> assigned_pilgrims = new ArrayList<>();
+    LinkedList<Point> dead_depots = new LinkedList<>();
+    boolean fuelCap, karbCap, combat,new_miner;
+    ArrayList<Integer> assigned_miners = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     int unit_no, status, node_no;
     ArrayList<Point> node_location;
@@ -49,6 +50,7 @@ public class Church {
         // Initialize church
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
         combat = false;
+        new_miner = false;
         unit_no = 0;
         node_no = 0;
         status = 0;
@@ -73,7 +75,7 @@ public class Church {
                                 break;
                             }
                         }
-                        assigned_pilgrims.add(r.id);
+                        assigned_miners.add(r.id);
                         assigned_depots.add(m);
                     }
                     if(manager.fuel_map[m.y][m.x]){
@@ -83,7 +85,7 @@ public class Church {
                                 break;
                             }
                         }
-                        assigned_pilgrims.add(r.id);
+                        assigned_miners.add(r.id);
                         assigned_depots.add(m);
                     }
                 }
@@ -94,11 +96,11 @@ public class Church {
         ArrayList<Point> possible_nodes = new ArrayList<>();
         if (manager.vsymmetry) { // vertical
             if (manager.map_length - me.y > me.y) { // upper half
-                possible_nodes.add(new Point(0, -shield_range));
-                possible_nodes.add(new Point(0, -shield_range));
+                possible_nodes.add(new Point(0, shield_range));
+                possible_nodes.add(new Point(0, shield_range));
             } else { // lower half
-                possible_nodes.add(new Point(0, shield_range));
-                possible_nodes.add(new Point(0, shield_range));
+                possible_nodes.add(new Point(0, -shield_range));
+                possible_nodes.add(new Point(0, -shield_range));
             }
 
             if (me.x < manager.map_length/3) { // left
@@ -203,6 +205,40 @@ public class Church {
                     assigned_depots.add(depot_loc);
                     return robo.buildUnit(robo.SPECS.PILGRIM, p.x, p.y);
                 }
+            }
+        }
+
+
+         // check for new pilgrims and add to list
+         if(new_miner){
+            for(Robot r:manager.vis_robots){
+                if(r.unit==robo.SPECS.PILGRIM && r.team == me.team ){
+                    if(assigned_miners.contains(r.id)){ // old miner
+                        continue;
+                    }
+                    assigned_miners.add(r.id);
+                    new_miner=false;
+                    break;
+                }
+            }
+        }
+
+        //remove missing pilgrims from list
+        for (int i=0;i<assigned_miners.size();i++){
+            boolean miss = true;
+            for(Robot r : manager.vis_robots){
+                if(r.id == assigned_miners.get(i)){
+                    miss = false;
+                    break;
+                }
+            }
+            if(miss){
+                robo.log("missing pilgrim :id- " + Integer.toString(assigned_miners.get(i)));
+                Point p = assigned_depots.get(i);
+                dead_depots.add(p);
+                assigned_depots.remove(i);
+                assigned_miners.remove(i);
+                i--; // to compensate for the shift due to deletion
             }
         }
 

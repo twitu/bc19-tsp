@@ -48,7 +48,7 @@ public class Comms {
     }
     
     // LSB code: 6. Base under attack
-    public int assignGaurd(Point p){
+    public int assignGuard(Point p){
         return (p.x*1024 + p.y*16 + 6);
     }
 

@@ -11,7 +11,7 @@ public class ResourceManager {
     //  int getID(int x, int y);
     //  Point getLocation(int ID);
     //  LinkedList<Point> depotList(int ID, boolean fuel);
-    //  int nearestClusterID(int x, int y, ArrarList<Integer> avoid);
+    //  int nearestClusterID(int x, int y, ArrayList<Integer> avoid);
     //  void pairClusters(int x, int y, int map_length, boolean vsymmetry);
     //  int nextTargetID(int x, int y);
     //  void targetAssigned(int ID);
@@ -23,7 +23,9 @@ public class ResourceManager {
     public ArrayList<Cluster> resourceList = new ArrayList<>();
     public ArrayList<Integer> homeClusters = new ArrayList<>();
     public ArrayList<Integer> enemyClusters = new ArrayList<>();
+    public ArrayList<Integer> midClusters = new ArrayList<>();
     public ArrayList<Integer> targets;
+    public ArrayList<Integer> midTargets;
 
     // Process map data and generate clusters with unique ID
     public ResourceManager(boolean[][] terrain, boolean[][] fuel, boolean[][] karbo) {
@@ -125,7 +127,7 @@ public class ResourceManager {
                 enemyClusters.add(Dual.ClusterID);
                 Dual.status = -1;
             } else if (R == Rdual) {
-                homeClusters.add(D.ClusterID);
+                midClusters.add(D.ClusterID);
                 D.status = 0;
             } else {
                 homeClusters.add(Dual.ClusterID);
@@ -135,25 +137,41 @@ public class ResourceManager {
             }
         }
         targets = new ArrayList<>(homeClusters);
+        midTargets = new ArrayList<>(midClusters);
     }
 
     // Get the next cluster to target
-    public int nextTargetID(int x, int y) {
+    public int nextTargetID(int x, int y, boolean mid) {
         int dist, out = Integer.MAX_VALUE, max_dist = Integer.MAX_VALUE;
-        for (int i: targets) {
-            Cluster D = resourceList.get(i);
-            dist = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);
-            if (dist < max_dist) {
-                out = D.ClusterID;
-                max_dist = dist;
+        if (mid) {
+            for (int i: midTargets) {
+                Cluster D = resourceList.get(i);
+                dist = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);
+                if (dist < max_dist) {
+                    out = D.ClusterID;
+                    max_dist = dist;
+                }
             }
+            midTargets.remove(Integer.valueOf(out));
+        } else {
+            for (int i: targets) {
+                Cluster D = resourceList.get(i);
+                dist = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);
+                if (dist < max_dist) {
+                    out = D.ClusterID;
+                    max_dist = dist;
+                }
+            }
+            targets.remove(Integer.valueOf(out));
         }
-        targets.remove(Integer.valueOf(out));
         return out;
     }
 
     // Mark cluster as assigned
     public void targetAssigned(int ID) {
+        if (midTargets.contains(ID)) {
+            midTargets.remove(Integer.valueOf(ID));
+        }
         if (targets.contains(ID)) {
             targets.remove(Integer.valueOf(ID));
         }

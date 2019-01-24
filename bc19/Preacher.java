@@ -18,7 +18,7 @@ public class Preacher {
     RefData refdata;
     int status;
     int initial_move_count;
-    Point home_castle, enemy_castle;
+    Point home_castle, enemy_castle,home_base;
     Point guard_loc;
 
     // Initialization
@@ -47,12 +47,14 @@ public class Preacher {
         if (base != null && robo.isRadioing(base)) {
             if (base.unit == robo.SPECS.CASTLE) {
                 home_castle = new Point(base.x, base.y);
+                home_base = home_castle;
                 enemy_castle = manager.oppPoint(base.x, base.y);
                 status = 1;
                 if (base.signal%16 == 8) {
                     initial_move_count = radio.decodeStepsToEnemy(base.signal);
                 }
             } else {
+                home_base = new Point(base.x, base.y);
                 if (base.signal%16 == 2) {
                     guard_loc = radio.decodeTargetLocation(base.signal);
                 }
@@ -76,25 +78,24 @@ public class Preacher {
 
         // if guard location is given move towards guard location
         if (guard_loc != null) {
-            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, guard_loc);
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, true,  guard_loc);
             return robo.move(next.x - me.x, next.y - me.y);
         }
 
         // move specified number of steps toward enemy castle
         if (initial_move_count > 0) {
             initial_move_count--;
-            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, enemy_castle);
+            Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, true,  enemy_castle);
             if (manager.vis_robot_map[next.y][next.x] > 0) {
                 next = manager.findEmptyAdj(next, false);
             }
 
             return robo.move(next.x - me.x, next.y - me.y);
         }
-        if (combat_manager.findSwarmed(robo)) {
-            // move toward enemy castle one step if to many allies
-            Point next = manager.findEmptyAdj(manager.me_location, false);
-            return robo.move(next.x - me.x, next.y - me.y);            
-        }
+        
+        // current swarm is hard coded to 6
+        Point next = combat_manager.findSwarmedMove(home_base);
+        if (next != null) return robo.move(next.x - me.x, next.y - me.y);
 
         // If confused sit tight
         return null;

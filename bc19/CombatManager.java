@@ -48,6 +48,7 @@ public class CombatManager {
         int high_score = 0;
         Robot dangerous = null;
         for (Robot bot: visRobots) {
+            if (!robo.isVisible(bot)) continue;
             int score = 0;
             if (refdata.in_attack_range(robo.me, bot)) {
                 score += 100;
@@ -69,7 +70,7 @@ public class CombatManager {
 
         if (dangerous != null) {
             Point dest = new Point(dangerous.x, dangerous.y);
-            Point next = robo.manager.findNextStep(robo.me.x, robo.me.y, robo.manager.passable_map, true, dest);
+            Point next = robo.manager.findNextStep(robo.me.x, robo.me.y, robo.manager.passable_map, true, false,  dest);
             retreat = new Point(-next.x, -next.y);
         }
 
@@ -110,17 +111,20 @@ public class CombatManager {
         }
     }
 
-    public boolean findSwarmed(MyRobot robo) {
+    public Point findSwarmedMove(Point home_base) {
         int count = 0;
-        Point adj;
+        Point adj = null;
         for (Point p: MyRobot.adj_directions) {
             adj = p.add(robo.manager.me_location);
             if (robo.manager.getRobotIdMap(adj.x,adj.y) > 0) {
                 Robot bot = robo.getRobot(robo.manager.getRobotIdMap(adj.x,adj.y));
                 if (bot.team == robo.me.team) count++;
-                if (count >= 6) return true;                                                                            
+                if (count >= 6) {
+                    return manager.findFarthestMove(manager.me_location, home_base, MyRobot.adj_directions);
+                }                                                                          
             }
         }
-        return false;
+
+        return null;
     }
 }

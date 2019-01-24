@@ -74,7 +74,10 @@ public class Pilgrim {
                             home_cluster = resData.resourceList.get(cluster_id);
                             home = resData.getLocation(cluster_id);
                             status = 1;//go to cluster
-
+                            if ((manager.vsymmetry && home_cluster.meanY == manager.map_length/2)
+                             || (!manager.vsymmetry && home_cluster.meanX == manager.map_length/2)) {
+                                relocateMidcluster();
+                            }
                             break;
                         }
                     }
@@ -82,6 +85,17 @@ public class Pilgrim {
             }
         }
 
+    }
+
+    // Relocate Mid Cluster home to nearer side
+    public void relocateMidcluster() {
+        Point a, b;
+        a = new Point(home_cluster.locX, home_cluster.locY);
+        b = manager.oppPoint(a.x, a.y);
+        if (manager.me_location.dist(a) > manager.me_location.dist(b)) {
+            home_cluster.locX = b.x;
+            home_cluster.locY = b.y;
+        }
     }
 
     // Bot AI
@@ -133,7 +147,7 @@ public class Pilgrim {
                     robo.log("Need more resources - mining stead");
                     home = P;
                     status = 0;
-                    Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, mineLoc);
+                    Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true,false, mineLoc);
                     if(next == null){
                         return null;
                     }
@@ -142,7 +156,7 @@ public class Pilgrim {
 
             // No? I need to move to target
             } else {                          
-                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, P);
+                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, false,  P);
                 if ((next.x == P.x) &&(next.y == P.y)){
                     next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
                 }
@@ -194,7 +208,7 @@ public class Pilgrim {
                 }
                 
                 // Not adjacent? Go home
-                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, home);
+                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, false,  home);
                 if(next.x == home.x && next.y == home.y){
                     next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions);
                     if(next == null){//maybe starvation
@@ -212,7 +226,7 @@ public class Pilgrim {
                 }
 
                 // Not on depot. Go to depot
-                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, mineLoc);
+                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, false,  mineLoc);
                 return robo.move(next.x - me.x, next.y - me.y);
             }
         }

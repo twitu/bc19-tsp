@@ -12,8 +12,8 @@ public class Management {
     //  Point findEmptyAdj(Robot me, boolean preferDepot);
     //  Point findEmptyAdj(Point dest, boolean preferDepot);
     //  boolean isAdj(Point a, Point b);
-    //  Point findNextStep(int x, int y, boolean[][] map, boolean r_four, LinkedList<Point> src);
-    //  Point findNextStep(int x, int y, boolean[][] map, boolean r_four, Point P);
+    //  Point findNextStep(int x, int y, boolean[][] map, boolean r_four, boolean avoidmine, LinkedList<Point> src);
+    //  Point findNextStep(int x, int y, boolean[][] map, boolean r_four, boolean avoidmine, Point P);
     //  int squareDistance(Robot bot, Point other);
     //  boolean[][] copyMap(boolean[][] map);
     //  Point findEmptyNextAdj(Point dest, Point src, Point[] moves);
@@ -21,6 +21,7 @@ public class Management {
     //  boolean checkBounds(int x, int y);
     //  Point oppPoint(int x, int y);
     //  Point findOffsetClosest(Point src, int range, Point dest, int offset)
+    //  Point findFarthestMove(Point current, Point away_from, boolean r_four)
     //
     ///*** END ***///
 
@@ -129,15 +130,19 @@ public class Management {
 
     // Find next point to move to closest source in given list
     // choose r^2=4 moves when r_four is true
-    public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, LinkedList<Point> src) {
+    public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, boolean avoidmine, LinkedList<Point> src) {
         Point current, next = new Point(x, y);
         Point[] directions;
+        Point result;
 
         directions = (r_four) ? MyRobot.four_directions : MyRobot.nine_directions;
         for (int i = 0; i < map_length; i++) {
             for (int j = 0; j < map_length; j++) {
                 if (vis_robot_map[i][j] > 0) {
                     map[i][j] = false;
+                }
+                if(avoidmine && (fuel_map[i][j] || karbo_map[i][j])){
+                    map[i][j] = false;                    
                 }
             }
         }
@@ -148,7 +153,15 @@ public class Management {
                 next = new Point(current.x + p.x, current.y + p.y);
                 if (next.x >= 0 && next.x < map_length && next.y >= 0 && next.y < map_length) {
                     if (next.x == x && next.y == y) {
+                        // if(!avoidmine){
                         return current;
+                        // }
+                        // if(!fuel_map[next.y][next.x] && !karbo_map[next.y][next.x]){
+                        //     return current;
+                        // }else{
+                        //     result = current;
+                        // }
+                        
                     } else {
                         if (map[next.y][next.x] == true) {
                             map[next.y][next.x] = false;
@@ -159,15 +172,15 @@ public class Management {
             }
         }
 
-        return null;
+        return result;
     }
 
     // Find next point to move to given point
     // choose r^2=4 moves when r_four is true
-    public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, Point P) {
+    public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, boolean avoidmine, Point P) {
         LinkedList<Point> temp = new LinkedList<>();
         temp.add(P);
-        return findNextStep(x, y, map, r_four, temp);
+        return findNextStep(x, y, map, r_four, avoidmine, temp);
     }
 
     // Square distance between two points represented by robot and point
@@ -281,5 +294,21 @@ public class Management {
             return vis_robot_map[y][x];
         }
         return -1;
+    }
+
+    public Point findFarthestMove(Point current, Point away_from, Point[] directions) {
+        Point next = null, farthest = null;
+        int min_dist = 0, dist = 0;
+        for (Point p: directions) {
+            next = p.add(current);
+            if (!passable_map[next.y][next.x] || vis_robot_map[next.y][next.x] > 0) continue;
+            dist = next.dist(away_from);
+            if (dist > min_dist) {
+                min_dist = dist;
+                farthest = next;
+            }
+        }
+
+        return farthest;   
     }
 }
