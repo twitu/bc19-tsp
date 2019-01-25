@@ -48,7 +48,7 @@ public class CombatManager {
         for (Robot bot: visRobots) {
             if (!robo.isVisible(bot)) continue;
             int score = 0;
-            if (refdata.in_attack_range(robo.me, bot)) {
+            if (refdata.inAttackRange(robo.me, bot)) {
                 score += 100;
             }
 
@@ -81,7 +81,7 @@ public class CombatManager {
         int min_score = 0;
         Point target = null;
         for (Robot bot: robo.manager.vis_robots) {
-            if (robo.isVisible(bot) && (bot.team != me.team) && (refdata.in_attack_range(bot, me))) {
+            if (robo.isVisible(bot) && (bot.team != me.team) && (refdata.inAttackRange(bot, me))) {
                 for (Point p: CombatManager.aoe) {
                     int dist = (me.x - bot.x - p.x)*(me.x - bot.x - p.x) + (me.y - bot.y - p.y)*(me.y - bot.y - p.y);
                     if (dist > RefData.atk_range[robo.SPECS.PREACHER]) {
@@ -124,5 +124,40 @@ public class CombatManager {
         }
 
         return null;
+    }
+
+    public Point findNextSafePoint(Robot me, Robot other, boolean closest) {
+        Point[] directions = (RefData.speed[me.unit] == 4) ? MyRobot.four_directions : MyRobot.nine_directions;
+        Point chosen = null, next = null;
+        int dist = 0;
+        if (closest) {
+            int min_dist = Integer.MAX_VALUE;
+            for (Point p: directions) {
+                next = p.add(manager.me_location);
+                if (manager.checkBounds(next.x, next.y) && manager.passable_map[next.y][next.x] && manager.vis_robot_map[next.y][next.x] <= 0) {
+                    if (refdata.inAttackRange(next, other)) continue;
+                    dist = next.dist(manager.me_location);
+                    if (dist < min_dist) {
+                        min_dist = dist;
+                        chosen = next;
+                    }
+                }
+            }
+        } else {
+            int max_dist = Integer.MIN_VALUE;
+            for (Point p: directions) {
+                next = p.add(robo.manager.me_location);
+                if (manager.checkBounds(next.x, next.y) && manager.passable_map[next.y][next.x] && manager.vis_robot_map[next.y][next.x] <= 0) {
+                    if (refdata.inAttackRange(next, other)) continue;
+                    dist = next.dist(manager.me_location);
+                    if (dist > max_dist) {
+                        max_dist = dist;
+                        chosen = next;
+                    }
+                }
+            }
+        }
+
+        return chosen;
     }
 }

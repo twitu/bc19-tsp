@@ -5,8 +5,8 @@ public class RefData {
 
     ///*** API ***///
     //
-    //  boolean in_visible_range(Robot me, Robot other);
-    //  boolean in_attack_range(Robot me, Robot other);
+    //  boolean inVisibleRange(Robot me, Robot other);
+    //  boolean inAttackRange(Robot me, Robot other);
     //
     ///*** END ***///
 
@@ -38,13 +38,18 @@ public class RefData {
     public static int[] move_cost = new int[]{ -1, -1, 1, 1, 2, 3};
     
     // Check if me is in visible range of other
-    public boolean in_visible_range(Robot me, Robot other) {
+    public boolean inVisibleRange(Robot me, Robot other) {
         return (((me.x - other.x)*(me.x - other.x) + (me.y - other.y)*(me.y - other.y)) <= RefData.vision[other.unit]) ? true : false;
     }
 
     // Check if me is in attack range of other
-    public boolean in_attack_range(Robot me, Robot other) {
+    public boolean inAttackRange(Robot me, Robot other) {
         return (((me.x - other.x)*(me.x - other.x) + (me.y - other.y)*(me.y - other.y)) <= RefData.atk_range[other.unit]) ? true : false;
+    }
+
+    // Check if me is in attack range of other
+    public boolean inAttackRange(Point pos, Robot other) {
+        return (((pos.x - other.x)*(pos.x - other.x) + (pos.y - other.y)*(pos.y - other.y)) <= RefData.atk_range[other.unit]) ? true : false;
     }
     
 }

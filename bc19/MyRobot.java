@@ -86,6 +86,8 @@ public class MyRobot extends BCAbstractRobot {
     int state, initial_move_count;
     Point guard_loc, home_castle, enemy_castle, home_base;
     Point target_loc;
+    ResourceManager resData;
+    RefData refdata;
     
     ///*** Helpers ***///
     public Management manager;
@@ -101,6 +103,10 @@ public class MyRobot extends BCAbstractRobot {
             manager = new Management(this);
             radio = new Comms(this);
             combat_manager = new CombatManager(this);
+            resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
+            refdata = new RefData();
+            resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry);
+
             if(me.unit == SPECS.PREACHER){
                 log("Preacher: Map data acquired1");
             }

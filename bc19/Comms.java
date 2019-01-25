@@ -67,6 +67,17 @@ public class Comms {
         return 9;
     }
 
+    // LSB code: 10. Tell all units about attack
+    public int yellowAlert(int base_id) {
+        return base_id*16 + 10;
+    }
+
+    // LSB code: 11. Tell all units about impending doom 
+    // and to give their lives for king and country
+    public int redAlert(int base_id) {
+        return base_id*16 + 11;
+    }
+
     ///*** Communication decoder functions ***///
     // Decode first location
     public Point decodes3(int signal){

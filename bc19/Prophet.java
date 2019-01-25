@@ -26,6 +26,7 @@ public class Prophet {
 
     // Initialization
     public Prophet(MyRobot robo) {
+        this.me = robo.me;
 
         // Store self references
         this.robo = robo;
@@ -33,7 +34,6 @@ public class Prophet {
         this.combat_manager = robo.combat_manager;
         this.manager = robo.manager;
         this.radio = robo.radio;
-        this.me = robo.me;
         this.manager = robo.manager;
         this.home_base = robo.home_base;
         this.home_castle = robo.home_castle;
@@ -45,11 +45,12 @@ public class Prophet {
         this.guard_loc_count = 0;
         this.target_loc = robo.target_loc;
         this.initial_move_count = robo.initial_move_count;
+        this.resData = robo.resData;
+        this.refdata = robo.refdata;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         refdata = new RefData();
-        manager.updateData();
         mark = -1;
         robo.log("Prophet: Map data acquired in state " + Integer.toString(this.state));
         if (state == 3) {
@@ -72,9 +73,11 @@ public class Prophet {
     // Bot AI
     public Action AI() {
         
-        this.me = robo.me;
+        this.me = robo.me;        
         manager.updateData();
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
+
+        // Listen on comms for emergency signals from castle
         
         // Check for currently marked target
         for (Robot bot: manager.vis_robots) {
@@ -109,7 +112,7 @@ public class Prophet {
         for (Robot bot: manager.vis_robots) {
             if (!robo.isVisible(bot)) continue;
             int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
-            if (bot.team != me.team && refdata.in_attack_range(bot, me) && (dist >= 16) && (dist < max_dist)) {
+            if (bot.team != me.team && refdata.inAttackRange(bot, me) && (dist >= 16) && (dist < max_dist)) {
                     max_dist = dist;
                     closest = bot;
             }

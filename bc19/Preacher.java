@@ -39,17 +39,17 @@ public class Preacher {
         this.guard_loc_count = 0;
         this.initial_move_count = robo.initial_move_count;
         this.state = robo.state;
+        this.refdata = robo.refdata;
+        this.resData = robo.resData;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
         refdata = new RefData();
-        manager.updateData();
         robo.log("Preacher: Map data acquired");
     }
 
     // Bot AI
     public Action AI() {
-
         this.me = robo.me;
         manager.updateData();
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));

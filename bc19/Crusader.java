@@ -41,7 +41,8 @@ public class Crusader {
         this.guard_loc_count = 0;
         this.initial_move_count = robo.initial_move_count;
         this.state = robo.state;
-        this.refdata = new RefData();
+        this.refdata = robo.refdata;
+        this.resData = robo.resData;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
@@ -74,8 +75,6 @@ public class Crusader {
 
     // Bot AI
     public Action AI() {
-
-        this.me = robo.me;
         manager.updateData();
 
         // variables for iterators
@@ -84,7 +83,7 @@ public class Crusader {
         // Check for enemy in attack range and attack
         for (Robot bot: manager.vis_robots) {
             if (!robo.isVisible(bot) || me.team == bot.team) continue;
-            if (refdata.in_attack_range(bot, me)) return robo.attack(bot.x - me.x, bot.y - me.y);
+            if (refdata.inAttackRange(bot, me)) return robo.attack(bot.x - me.x, bot.y - me.y);
         }
 
         // Listen to broadcast for nearby marks
@@ -121,7 +120,7 @@ public class Crusader {
         int max_dist = Integer.MAX_VALUE;
         for (Robot bot: manager.vis_robots) {
             if (!robo.isVisible(bot) || me.team == bot.team) continue;
-            if (refdata.in_attack_range(me, bot)) {
+            if (refdata.inAttackRange(me, bot)) {
                 int dist = (bot.x - me.x)*(bot.x - me.x) + (bot.y - me.y)*(bot.y - me.y);
                 if (dist < max_dist) {
                     max_dist = dist;

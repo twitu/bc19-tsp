@@ -35,13 +35,13 @@ public class Pilgrim {
         this.combat_manager = robo.combat_manager;
         this.manager = robo.manager;
         this.radio = robo.radio;
-        manager.updateData();
+        this.refdata = robo.refdata;
+        this.resData = robo.resData;
         
         // Process and store depot clusters
-        resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         combat = false;
         emergency = false;
-        robo.log("Pilgrim: Map data acquired");
+        robo.log("Pilgrim: Map data acquired");         
 
         // Look for creator building and initialize status
         for (Point p: MyRobot.adj_directions) {

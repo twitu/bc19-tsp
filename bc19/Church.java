@@ -10,6 +10,7 @@ public class Church {
 
     // Map data
     ResourceManager resData;
+    RefData refdata;
     
     // Self references
     MyRobot robo;
@@ -41,10 +42,10 @@ public class Church {
         this.radio = robo.radio;
         this.shield_range = 5;
         this.node_location = new ArrayList<>();
-
+        this.refdata = robo.refdata;
+        this.resData = robo.resData;
 
         // Process and store depot clusters
-        resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         robo.log("Church: Map data acquired");
 
         // Initialize church
@@ -54,7 +55,6 @@ public class Church {
         unit_no = 0;
         node_no = 0;
         status = 0;
-        manager.updateData();
         
         // Record resource point locations
         Cluster D = resData.resourceList.get(resData.getID(me.x, me.y));
@@ -138,8 +138,6 @@ public class Church {
 
     // Bot AI
     public Action AI() {
-        
-        this.me = robo.me;
         manager.updateData();
         robo.castleTalk(radio.baseID(resData.getID(me.x, me.y)));
 
@@ -269,10 +267,8 @@ public class Church {
                 robo.signal(radio.assignGuard(dest), 2);
                 node_no = (++node_no) % node_location.size();
                 return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+            }
         }
-        }
-
-        
 
         // If confused, sit tight
         return null;
