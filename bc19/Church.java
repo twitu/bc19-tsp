@@ -20,11 +20,11 @@ public class Church {
     Comms radio;
 
     // Private Variables
-    public static int[] emergencyFund = {30, 20};
+    public static int[] emergencyFund = {50, 100};
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
     LinkedList<Point> dead_depots = new LinkedList<>();
-    boolean fuelCap, karbCap, combat,new_miner;
+    boolean fuelCap, karbCap, combat,new_miner,priority;
     ArrayList<Integer> assigned_miners = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     int unit_no, status, node_no;
@@ -138,6 +138,8 @@ public class Church {
 
     // Bot AI
     public Action AI() {
+
+        this.me = robo.me;
         manager.updateData();
         robo.castleTalk(radio.baseID(resData.getID(me.x, me.y)));
 

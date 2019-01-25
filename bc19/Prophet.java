@@ -23,6 +23,8 @@ public class Prophet {
     int initial_move_count;
     int guard_loc_count;
     Point target_loc;
+    Point attack_point;
+    boolean red_alert;
 
     // Initialization
     public Prophet(MyRobot robo) {
@@ -47,6 +49,8 @@ public class Prophet {
         this.initial_move_count = robo.initial_move_count;
         this.resData = robo.resData;
         this.refdata = robo.refdata;
+        this.red_alert = false;
+        this.attack_point = null;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
@@ -78,6 +82,29 @@ public class Prophet {
         robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
 
         // Listen on comms for emergency signals from castle
+        if (state <= 10) {
+            if (!red_alert) {
+                for (Robot bot: manager.vis_robots) {
+                    if (bot.signal%16 == 10) { // make more complex
+                        if (attack_point.equals(home_base)) continue;
+                        red_alert = true;
+                        attack_point = new Point(bot.signal/1024, bot.signal%1024/16);
+                        break;
+                    }
+                }
+            } else {
+                for (Robot bot: manager.vis_robots) {
+                    if (bot.signal%16 == 11) {
+                        Point possible_attack = new Point(bot.signal/1024, bot.signal/1024%16);
+                        if (possible_attack.equals(attack_point)) {
+                            state = 11;
+                            red_alert = false;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         
         // Check for currently marked target
         for (Robot bot: manager.vis_robots) {
@@ -166,6 +193,21 @@ public class Prophet {
             Point next = combat_manager.findSwarmedMove(home_base);
             if (next != null) return robo.move(next.x - me.x, next.y - me.y);
         }
+
+        // recieved red alert at communication problems
+        if (state == 11) {
+            attack_point = manager.oppPoint(attack_point.x, attack_point.y);
+            state = 12;
+        }
+
+        if (state == 12) {
+            Point next_step = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, attack_point);
+            return robo.move(next_step.x - me.x, next_step.y - me.y);
+        }
+
+        // if(state == 5){
+        //     //non shield defense units
+        // }
 
         // Nothing to do
         return null;

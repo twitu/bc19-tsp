@@ -146,6 +146,8 @@ public class MyRobot extends BCAbstractRobot {
                         } else if (base.signal%16 == 6) {
                             state = 2;
                             guard_loc = radio.decodeAssignGuard(base.signal);
+                        }else if (base.signal%16 == 9) {
+                            state = 5;
                         }
                     }
                 }
