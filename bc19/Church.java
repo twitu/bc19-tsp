@@ -223,44 +223,56 @@ public class Church {
             }
         }
 
-        //remove missing pilgrims from list
-        for (int i=0;i<assigned_miners.size();i++){
-            boolean miss = true;
-            for(Robot r : manager.vis_robots){
-                if(r.id == assigned_miners.get(i)){
-                    miss = false;
-                    break;
+        // //remove missing pilgrims from list
+        // for (int i=0;i<assigned_miners.size();i++){
+        //     boolean miss = true;
+        //     for(Robot r : manager.vis_robots){
+        //         if(r.id == assigned_miners.get(i)){
+        //             miss = false;
+        //             break;
+        //         }
+        //     }
+        //     if(miss){
+        //         robo.log("missing pilgrim :id- " + Integer.toString(assigned_miners.get(i)));
+        //         Point p = assigned_depots.get(i);
+        //         dead_depots.add(p);
+        //         assigned_depots.remove(i);
+        //         assigned_miners.remove(i);
+        //         i--; // to compensate for the shift due to deletion
+        //     }
+        // }
+        Integer assize = 0;
+
+        //track militia and pilgrims
+        //remove missing pilgrims or militia from list
+        for(Robot r : manager.vis_robots){
+            if(r.team==me.team && (r.unit==robo.SPECS.PREACHER || r.unit == robo.SPECS.PROPHET)){
+                assize++;
+            }
+        }
+
+        if(assize < 6){
+            // Set up defences
+            int unit_type = MyRobot.tiger_squad[unit_no];
+            unit_req = RefData.requirements[unit_type];
+            if (1==1) {
+                robo.log("reached here");
+                Point emptyadj = manager.findEmptyAdj(me, false);
+                if(emptyadj == null){
+                    return null;
                 }
-            }
-            if(miss){
-                robo.log("missing pilgrim :id- " + Integer.toString(assigned_miners.get(i)));
-                Point p = assigned_depots.get(i);
-                dead_depots.add(p);
-                assigned_depots.remove(i);
-                assigned_miners.remove(i);
-                i--; // to compensate for the shift due to deletion
-            }
+                unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+
+                // signal position
+                Point dest = node_location.get(node_no);
+                robo.log("unit destination is x " + Integer.toString(dest.x) + "y " + Integer.toString(dest.y));
+                robo.signal(radio.assignGuard(dest), 2);
+                node_no = (++node_no) % node_location.size();
+                return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+        }
         }
 
-
-        // Set up defences
-        int unit_type = MyRobot.tiger_squad[unit_no];
-        unit_req = RefData.requirements[unit_type];
-        if (1==1) {
-            robo.log("reached here");
-            Point emptyadj = manager.findEmptyAdj(me, false);
-            if(emptyadj == null){
-                return null;
-            }
-            unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-
-            // signal position
-            Point dest = node_location.get(node_no);
-            robo.log("unit destination is x " + Integer.toString(dest.x) + "y " + Integer.toString(dest.y));
-            robo.signal(radio.targetLocation(dest.x, dest.y), 2);
-            node_no = (++node_no) % node_location.size();
-            return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-        }
+        
 
         // If confused, sit tight
         return null;

@@ -83,6 +83,9 @@ public class MyRobot extends BCAbstractRobot {
     Crusader crusader;
     Prophet prophet;
     Preacher preacher;
+    int state, initial_move_count;
+    Point guard_loc, home_castle, enemy_castle, home_base;
+    Point target_loc;
     
     ///*** Helpers ***///
     public Management manager;
@@ -92,11 +95,56 @@ public class MyRobot extends BCAbstractRobot {
     ///*** Main Code ***///
     public Action turn() {
         
+        
         // Initialization
         if (me.turn == 1) {
             manager = new Management(this);
             radio = new Comms(this);
             combat_manager = new CombatManager(this);
+            if(me.unit == SPECS.PREACHER){
+                log("Preacher: Map data acquired1");
+            }
+
+            // for military units
+            if (me.unit == SPECS.PROPHET || me.unit == SPECS.PREACHER || me.unit == SPECS.CRUSADER) {
+                state = 0;
+                initial_move_count = 0;
+                guard_loc = null;
+                home_castle = null;
+                enemy_castle = null;
+                home_base = null;
+                target_loc = null;
+                Robot base = combat_manager.baseCastleChurch();
+                if (base != null && this.isRadioing(base)) {
+                    if (base.unit == this.SPECS.CASTLE) {
+                        home_castle = new Point(base.x, base.y);
+                        home_base = home_castle;
+                        enemy_castle = manager.oppPoint(base.x, base.y);
+                        if (base.signal%16 == 8) {
+                            state = 1;
+                            initial_move_count = radio.decodeStepsToEnemy(base.signal);
+                        } else if (base.signal%16 == 6) {
+                            state = 2;
+                            guard_loc = radio.decodeAssignGuard(base.signal);
+                        } else if (base.signal%16 == 2) {
+                            state = 3;
+                            target_loc = radio.decodeTargetLocation(base.signal);
+                        } else if (base.signal%16 == 9) {
+                            state = 5;
+                        }
+                    } else { // home base is a church
+                        home_base = new Point(base.x, base.y);
+                        if (base.signal%16 == 2) {
+                            state = 3;
+                            target_loc = radio.decodeTargetLocation(base.signal);
+                        } else if (base.signal%16 == 6) {
+                            state = 2;
+                            guard_loc = radio.decodeAssignGuard(base.signal);
+                        }
+                    }
+                }
+            }
+
             switch (me.unit) {
                 case 0: castle = new Castle(this);
                         break;

@@ -1,7 +1,6 @@
 package bc19;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.Arrays.*;
 import java.util.Arrays;
 import java.lang.*;
@@ -147,7 +146,7 @@ public class Pilgrim {
                     robo.log("Need more resources - mining stead");
                     home = P;
                     status = 0;
-                    Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true,false, mineLoc);
+                    Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, mineLoc);
                     if(next == null){
                         return null;
                     }
@@ -156,7 +155,7 @@ public class Pilgrim {
 
             // No? I need to move to target
             } else {                          
-                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, false,  P);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false,  P);
                 if ((next.x == P.x) &&(next.y == P.y)){
                     next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
                 }
@@ -208,7 +207,7 @@ public class Pilgrim {
                 }
                 
                 // Not adjacent? Go home
-                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, false,  home);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false,  home);
                 if(next.x == home.x && next.y == home.y){
                     next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions);
                     if(next == null){//maybe starvation
@@ -226,7 +225,7 @@ public class Pilgrim {
                 }
 
                 // Not on depot. Go to depot
-                Point next = manager.findNextStep(me.x, me.y, manager.copyMap(manager.passable_map), true, false,  mineLoc);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false,  mineLoc);
                 return robo.move(next.x - me.x, next.y - me.y);
             }
         }

@@ -1,5 +1,6 @@
 package bc19;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Arrays;
 
@@ -12,8 +13,8 @@ public class Management {
     //  Point findEmptyAdj(Robot me, boolean preferDepot);
     //  Point findEmptyAdj(Point dest, boolean preferDepot);
     //  boolean isAdj(Point a, Point b);
-    //  Point findNextStep(int x, int y, boolean[][] map, boolean r_four, boolean avoidmine, LinkedList<Point> src);
-    //  Point findNextStep(int x, int y, boolean[][] map, boolean r_four, boolean avoidmine, Point P);
+    //  Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, LinkedList<Point> src);
+    //  Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, Point P);
     //  int squareDistance(Robot bot, Point other);
     //  boolean[][] copyMap(boolean[][] map);
     //  Point findEmptyNextAdj(Point dest, Point src, Point[] moves);
@@ -130,12 +131,11 @@ public class Management {
 
     // Find next point to move to closest source in given list
     // choose r^2=4 moves when r_four is true
-    public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, boolean avoidmine, LinkedList<Point> src) {
+    public Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, ArrayList<Point> src) {
         Point current, next = new Point(x, y);
-        Point[] directions;
         Point result;
+        boolean[][] map = copyMap(passable_map);
 
-        directions = (r_four) ? MyRobot.four_directions : MyRobot.nine_directions;
         for (int i = 0; i < map_length; i++) {
             for (int j = 0; j < map_length; j++) {
                 if (vis_robot_map[i][j] > 0) {
@@ -147,8 +147,9 @@ public class Management {
             }
         }
 
-        while (!src.isEmpty()) {
-            current = src.pollFirst();
+        int i = 0;
+        while (i!=src.size()) {
+            current = src.get(i);
             for (Point p: directions) {
                 next = new Point(current.x + p.x, current.y + p.y);
                 if (next.x >= 0 && next.x < map_length && next.y >= 0 && next.y < map_length) {
@@ -170,6 +171,7 @@ public class Management {
                     }
                 }
             }
+            i++;
         }
 
         return result;
@@ -177,10 +179,10 @@ public class Management {
 
     // Find next point to move to given point
     // choose r^2=4 moves when r_four is true
-    public Point findNextStep(int x, int y, boolean[][] map, boolean r_four, boolean avoidmine, Point P) {
-        LinkedList<Point> temp = new LinkedList<>();
+    public Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, Point P) {
+        ArrayList<Point> temp = new ArrayList<>();
         temp.add(P);
-        return findNextStep(x, y, map, r_four, avoidmine, temp);
+        return findNextStep(x, y, directions, avoidmine, temp);
     }
 
     // Square distance between two points represented by robot and point
@@ -310,5 +312,33 @@ public class Management {
         }
 
         return farthest;   
+    }
+
+    public int numberOfMoves(Point current, Point dest, Point[] directions) {
+        boolean[][] map = copyMap(passable_map);
+        ArrayList<Integer> moves_count = new ArrayList<>();
+        ArrayList<Point> moves = new ArrayList<>();
+        moves_count.add(0);
+        moves.add(current);
+        map[current.y][current.x] = false;
+        int i = 0;
+        Point last_move, next;
+        int last_count;
+        while (i != moves.size()) {
+            last_move = moves.get(i);
+            last_count = moves_count.get(i);
+            for (Point p: directions) {
+                next = p.add(last_move);
+                if (next.equals(dest)) {
+                    return last_count + 1;
+                }
+                if (checkBounds(next.x, next.y) && map[next.y][next.x]) {
+                    map[next.y][next.x] = false;
+                    moves.add(next);
+                    moves_count.add(last_count + 1);
+                }
+            }
+            i++;
+        }
     }
 }

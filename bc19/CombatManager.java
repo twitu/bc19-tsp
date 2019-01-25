@@ -1,7 +1,5 @@
 package bc19;
 
-import java.util.LinkedList;
-
 public class CombatManager {
 
     MyRobot robo;
@@ -70,7 +68,7 @@ public class CombatManager {
 
         if (dangerous != null) {
             Point dest = new Point(dangerous.x, dangerous.y);
-            Point next = robo.manager.findNextStep(robo.me.x, robo.me.y, robo.manager.passable_map, true, false,  dest);
+            Point next = robo.manager.findNextStep(robo.me.x, robo.me.y, MyRobot.four_directions, false,  dest);
             retreat = new Point(-next.x, -next.y);
         }
 

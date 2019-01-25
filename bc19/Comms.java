@@ -62,6 +62,11 @@ public class Comms {
         return ((steps)*16 + 8);
     }
 
+    // LSB code: 9. Tell crusader that you are a dummy
+    public int crusaderDummy() {
+        return 9;
+    }
+
     ///*** Communication decoder functions ***///
     // Decode first location
     public Point decodes3(int signal){
@@ -73,11 +78,16 @@ public class Comms {
 
     // Decode LSB code: 8. Move n steps towards enemy castle
     public int decodeStepsToEnemy(int signal){
-        return signal/16;
+        return (signal-8)/16;
     }
 
-    // Decode LSB code: 8. target location
+    // Decode LSB code: 2. target location
     public Point decodeTargetLocation(int signal){
+        return new Point(signal/1024, (signal % 1024)/16);
+    }
+
+    // Decode LSB code: 6. Base under attack
+    public Point decodeAssignGuard(int signal){
         return new Point(signal/1024, (signal % 1024)/16);
     }
 
