@@ -27,9 +27,11 @@ public class Church {
     boolean fuelCap, karbCap, combat,new_miner,priority;
     ArrayList<Integer> assigned_miners = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
-    int unit_no, status, node_no;
+    int unit_no, state, node_no;
     ArrayList<Point> node_location;
-    int shield_range;
+    int shield_range, shield_size;
+    int shield_priority_count;
+    boolean priority;
 
     // Initialization
     public Church(MyRobot robo) {
@@ -44,6 +46,8 @@ public class Church {
         this.node_location = new ArrayList<>();
         this.refdata = robo.refdata;
         this.resData = robo.resData;
+        this.shield_size = 6;
+        this.shield_priority_count = 2;
 
         // Process and store depot clusters
         robo.log("Church: Map data acquired");
@@ -54,8 +58,8 @@ public class Church {
         new_miner = false;
         unit_no = 0;
         node_no = 0;
-        status = 0;
-        
+        state = 0;
+
         // Record resource point locations
         Cluster D = resData.resourceList.get(resData.getID(me.x, me.y));
         fuel_depots = new LinkedList<>(D.fuelPos);
@@ -134,6 +138,39 @@ public class Church {
                 node_location.add(new Point(me.x + p.x, me.y + p.y));
             }
         }
+
+        //calculate distance from mid and set priority
+        if(manager.vsymmetry){
+            if(me.y > manager.map_length/2){
+                if(me.y > (3*manager.map_length/4)){
+                    priority = false;
+                }else{
+                    priority = true;
+                }
+            }else{
+                if(me.y < manager.map_length/4){
+                    priority = false;
+                }else{
+                    priority = true;
+                }
+
+            }
+        }else{
+            if(me.x > manager.map_length/2){
+                if(me.x > (3*manager.map_length/4)){
+                    priority = false;
+                }else{
+                    priority = true;
+                }
+            }else{
+                if(me.x < manager.map_length/4){
+                    priority = false;
+                }else{
+                    priority = true;
+                }
+
+            }
+        }
     }
 
     // Bot AI
@@ -143,45 +180,49 @@ public class Church {
         manager.updateData();
         robo.castleTalk(radio.baseID(resData.getID(me.x, me.y)));
 
-        // Check for enemies and broadcast if under attack
-        boolean noCombat = true;
-        for (Robot bot: manager.vis_robots){
-            
-            // Avoid enemy comms jamming
-            if (!robo.isVisible(bot)) continue;
-            
-            // Enemy in sight?
-            if (bot.team != me.team) {
-                noCombat = false;
-                if (!combat) {
-                    combat = true;
-                    robo.signal(radio.emergency(new Point(bot.x, bot.y)), Cluster.range);
-                }
-                break;
-            }
-
-            // Emergency broadcast from nearby unit?
-            if ((bot.team == me.team) && (bot.signal % 16 == 5)) {
-                Point enemy_loc = new Point(-1, -1);
-                enemy_loc.x = bot.signal/1024;
-                enemy_loc.y = (bot.signal % 1024)/16;
-                noCombat = false;
-                if (!combat) {
-                    combat = true;
-                    robo.signal(radio.emergency(new Point(bot.x, bot.y)), Cluster.range);
-                }
-                break;
+        int defence_count = 0;
+        for(Robot r : manager.vis_robots){
+            if (!robo.isVisible(r)) continue;
+            if(r.team==me.team && (r.unit==robo.SPECS.PREACHER || r.unit == robo.SPECS.PROPHET || r.unit == robo.SPECS.CRUSADER)){
+                defence_count++;
             }
         }
 
-        // Defense successful? Then go to normal mode but be alert. Also tell castle
-        if (noCombat) {
-            combat = false;
+        if (defence_count < shield_size) {
+            state = 1;
         }
 
+        if (state == 1) {
+            if (priority) {
+                
+            }
+        }
         
         // TODO: Pilgrim Tacking: Keep track of pilgrims
         // Produce pilgrims
+        if (priority && ((state == 0) || (state == 2))) {
+            // prioritize shield over economy
+            if(assize < 6){
+                // Set up defences
+                int unit_type = MyRobot.tiger_squad[unit_no];
+                unit_req = RefData.requirements[unit_type];
+                if (1==1) {
+                    robo.log("reached here");
+                    Point emptyadj = manager.findEmptyAdj(me, false);
+                    if(emptyadj == null){
+                        return null;
+                    }
+                    unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+
+                    // signal position
+                    Point dest = node_location.get(node_no);
+                    robo.log("unit destination is x " + Integer.toString(dest.x) + "y " + Integer.toString(dest.y));
+                    robo.signal(radio.assignGuard(dest), 2);
+                    node_no = (++node_no) % node_location.size();
+                    return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+                }
+            }
+        }
         robo.log("karbs is " + Integer.toString(karb_depots.size()) + "fuel is " + Integer.toString(fuel_depots.size()));
         int[] unit_req = RefData.requirements[robo.SPECS.PILGRIM];
         if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)
@@ -243,8 +284,8 @@ public class Church {
         // }
         Integer assize = 0;
 
-        //track militia and pilgrims
-        //remove missing pilgrims or militia from list
+        //track  pilgrims
+        //remove missing pilgrims from list
         for(Robot r : manager.vis_robots){
             if(r.team==me.team && (r.unit==robo.SPECS.PREACHER || r.unit == robo.SPECS.PROPHET)){
                 assize++;

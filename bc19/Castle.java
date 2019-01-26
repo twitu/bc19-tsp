@@ -20,11 +20,12 @@ public class Castle {
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
     LinkedList<Point> dead_depots = new LinkedList<>();
-    boolean fuelCap, karbCap, combat, new_miner,new_atk,priority;
+    boolean fuelCap, karbCap, combat, new_miner,def_ring_init,priority;
     ArrayList<Integer> assigned_miners = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     ArrayList<Point> node_location = new ArrayList<>();
-    ArrayList<Integer> assigned_militia = new ArrayList<>();
+    ArrayList<Point> guard_locations = new ArrayList<>();
+    ArrayList<Integer> assigned_loc = new ArrayList<>();
     Point nextP;
     int unit_no, mark,state,unit_type;
     int baseID;
@@ -53,14 +54,14 @@ public class Castle {
         robo.log("Castle: Map data acquired");                       
 
         // Initialize castle
-        new_atk = false;
         combat = false;
+        def_ring_init = true;
         unit_no = 0;
         mark = -1;
         state = 0;
         baseID = -1;
         node_no = 0;
-        shield_range = 5;
+        shield_range = 10;
         
         // Record resource point locations
         castleClusters.add(resData.getID(me.x, me.y));
@@ -73,7 +74,7 @@ public class Castle {
 
         // Check symmetry and map to determine nodes for defense shield
         ArrayList<Point> possible_nodes = new ArrayList<>();
-        if (manager.vsymmetry) { // vertical
+        if (!manager.vsymmetry) { // horizontal
             if (me.y < manager.map_length/4) { // upper half
                 possible_nodes.add(new Point(0, shield_range));
             } else if (me.y > (manager.map_length - manager.map_length/4)) { // lower half
@@ -82,7 +83,7 @@ public class Castle {
                 possible_nodes.add(new Point(0, -shield_range));
                 possible_nodes.add(new Point(0, shield_range));
             }
-        } else { // horizontal symmetry
+        } else { // vertical symmetry
             if (me.x < manager.map_length/4) { // left
                 possible_nodes.add(new Point(shield_range, 0));
             } else if (me.x > (manager.map_length - manager.map_length/4)) {// right
@@ -131,8 +132,6 @@ public class Castle {
 
             }
         }
-
-
     }
 
     // Bot AI
@@ -143,7 +142,7 @@ public class Castle {
         robo.castleTalk(radio.baseID(resData.getID(me.x, me.y)));
         
         // If 600+ turns start populating
-        if (me.turn >= 500) {
+        if (me.turn >= 600) {
             state = 5;
         }
 
@@ -190,7 +189,7 @@ public class Castle {
             state = 11;
         }
 
-        // check for new pilgrims or militia and add to list
+        // check for new pilgrims and add to list
         if(new_miner){
             for(Robot r:manager.vis_robots){
                 if(r.unit==robo.SPECS.PILGRIM && r.team == me.team ){
@@ -198,26 +197,12 @@ public class Castle {
                         continue;
                     }
                     assigned_miners.add(r.id);
-                    // robo.log("adding miner id:" + Integer.toString(r.id));
+                    robo.log("adding miner id:" + Integer.toString(r.id));
                     new_miner=false;
                     break;
                 }
             }
         }
-        // if(new_atk){
-        //     for(Robot r:manager.vis_robots){
-        //             if(r.unit==robo.SPECS.PILGRIM && r.team == me.team ){
-        //                 if(assigned_militia.contains(r.id)){ // old milit
-        //                     continue;
-        //                 }
-        //                 assigned_militia.add(r.id);
-        //                 robo.log("adding militia id:" + Integer.toString(r.id));
-        //                 robo.log("adding militia size:" + Integer.toString(assigned_militia.size()));
-        //                 new_atk=false;
-        //                 break;
-        //             }
-        //     }  
-        // }
 
         //remove missing pilgrims  from list
         for (int i=0;i<assigned_miners.size();i++){
@@ -473,46 +458,38 @@ public class Castle {
                         
 
 
-            int a = 0;
-            int b = 0;
-            if(a!=b){
-                if(priority){
-                    unit_type = robo.SPECS.PROPHET;
-                    unit_req = RefData.requirements[robo.SPECS.PREACHER];
-                    if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
-                        // robo.log("adding militia size :" + Integer.toString(assigned_militia.size()));
-                        Point emptyadj = manager.findEmptyAdj(me, false);
-                        // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-                        robo.signal(radio.stepsToEnemy(3),2);
-                        return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-                    }
-                }
+            // int a = 0;
+            // int b = 0;
+            // if(a!=b){
+            //     if(priority){
+            //         unit_type = robo.SPECS.PROPHET;
+            //         unit_req = RefData.requirements[robo.SPECS.PREACHER];
+            //         if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
+            //             // robo.log("adding militia size :" + Integer.toString(assigned_militia.size()));
+            //             Point emptyadj = manager.findEmptyAdj(me, false);
+            //             // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+            //             robo.signal(radio.stepsToEnemy(3),2);
+            //             return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+            //         }
+            //     }
 
             }
-
-            // // If enough resources available, build a tiger squad
-            // int unit_type = MyRobot.tiger_squad[unit_no];
-            // unit_req = RefData.requirements[unit_type];
-            // if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
-            //     Point emptyadj = manager.findEmptyAdj(me, false);
-            //     unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-            //     robo.signal(radio.stepsToEnemy(3),2);
-            //     if(manager.buildable(unit_type)){
-            //         new_atk =true;
-            //     }
-            //     return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-            // }
         }
 
         if (state == 5) {
-            Point emptyadj = manager.findEmptyAdj(me, false);
-            if (emptyadj == null) {
-                return null;
-            }
+
+            Point emptyadj;
             Point dest = node_location.get(node_no);
-            robo.signal(radio.assignGuard(dest), 2);
-            node_no = (++node_no) % node_location.size();
-            return robo.buildUnit(robo.SPECS.CRUSADER, emptyadj.x, emptyadj.y);
+
+            for(Point p:MyRobot.adj_directions){
+                if( ((p.y + me.y) - (p.x + me.x)) %2 == 0 ){
+                    emptyadj = p;
+                    break;
+                }
+            }
+            if(emptyadj != null && manager.buildable(robo.SPECS.PROPHET)){
+                return robo.buildUnit(robo.SPECS.PROPHET,emptyadj.x,emptyadj.y);
+            }
         }
 
         // Nothing to do

@@ -159,7 +159,10 @@ public class Crusader {
                     state = 0;
                 }
                 Point next = manager.findNextStep(me.x, me.y, MyRobot.adj_directions, true, guard_loc);
-                return robo.move(next.x - me.x, next.y - me.y);
+                if (next != null) {
+                    robo.log("I need to move " + Integer.toString(next.x - me.x) + "," + Integer.toString(next.y - me.y));
+                    return robo.move(next.x - me.x, next.y - me.y);
+                }
             }
         }
 
@@ -174,7 +177,8 @@ public class Crusader {
             int count = 0;
             boolean strike = false;
             for (Point p: MyRobot.adj_directions) {
-                if (!manager.passable_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] > 0) {
+                if (!checkBounds[me.y + p.y][me.x + p.x] || !manager.passable_map[me.y + p.y][me.x + p.x]
+                 || manager.vis_robot_map[me.y + p.y][me.x + p.x] > 0) {
                     count++;
                     strike = true;
                 } else if (strike) {

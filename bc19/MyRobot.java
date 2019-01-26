@@ -15,6 +15,13 @@ public class MyRobot extends BCAbstractRobot {
         new Point(-1, 1)
     };
 
+    public static Point[] diag_directions = {
+        new Point(1, 1),
+        new Point(1, -1),
+        new Point(-1, -1),
+        new Point(-1, 1)
+    };
+
     // r^2 = 4
     public static Point[] four_directions = {
         new Point(0, 1),

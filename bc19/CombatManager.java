@@ -119,7 +119,7 @@ public class CombatManager {
                 if (bot.team == robo.me.team) count++;
                 if (count >= 6) {
                     return manager.findFarthestMove(manager.me_location, home_base, MyRobot.adj_directions);
-                }                                                                          
+                }
             }
         }
 

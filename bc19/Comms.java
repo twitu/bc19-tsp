@@ -62,7 +62,7 @@ public class Comms {
         return ((steps)*16 + 8);
     }
 
-    // LSB code: 9. Tell crusader that you are a dummy
+    // LSB code: 9. Tell crusader that you are a dummy(stack/lattice)
     public int crusaderDummy() {
         return 9;
     }
@@ -77,6 +77,10 @@ public class Comms {
     public int redAlert(Point base) {
         return base.x*1024 + base.y*16 + 11;
     }
+
+
+
+
 
     ///*** Communication decoder functions ***///
     // Decode first location

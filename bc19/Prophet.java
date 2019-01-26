@@ -16,6 +16,7 @@ public class Prophet {
     RefData refdata;
     int mark;
     int state;
+    int lattice_radius = 7;
     Point home_castle;
     Point enemy_castle;
     Point guard_loc;
@@ -25,6 +26,7 @@ public class Prophet {
     Point target_loc;
     Point attack_point;
     boolean red_alert;
+    boolean min;
 
     // Initialization
     public Prophet(MyRobot robo) {
@@ -51,6 +53,7 @@ public class Prophet {
         this.refdata = robo.refdata;
         this.red_alert = false;
         this.attack_point = null;
+        
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
@@ -61,6 +64,7 @@ public class Prophet {
             relocateMidcluster();
         }
     }
+
 
     // Relocate Mid Cluster home to nearer side
     public void relocateMidcluster() {
@@ -166,8 +170,9 @@ public class Prophet {
             // robo.log("found my target loc moving there :" + Integer.toString(next.y) +", " + Integer.toString(next.x));
             if (next.equals(target_loc)) {
                 state = 0;
+            } else {
+                return robo.move(next.x - me.x, next.y - me.y);
             }
-            return robo.move(next.x - me.x, next.y - me.y);
         }
 
         if(state == 2){
@@ -188,11 +193,29 @@ public class Prophet {
             }
         }
 
-        // current swarm is hard coded to 6
-        if (state == 0) {
-            Point next = combat_manager.findSwarmedMove(home_base);
-            if (next != null) return robo.move(next.x - me.x, next.y - me.y);
-        }
+        if(state == 0){
+            //lattice
+            // determine max x or y reachable
+                    //do not move below lim
+                    for(Point p : MyRobot.diag_directions){
+                        if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                            continue;
+                        }
+                        if( home.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
+                            //do not move further from lattice radius
+                            continue;
+                        }
+                        if(((p.x + me.x - home_base.x)*(p.x + me.x - home_base.x) + (p.y + me.y - home_base.y)*(p.y + me.y - home_base.y)) > ((me.x - home_base.x)*(me.x - home_base.x) + (me.y - home_base.y)*(me.y - home_base.y))){
+                            //if moving farther from home_base
+                            return robo.move(p.x,p.y);
+                        }
+                    }
+                }
+        // // current swarm is hard coded to 6
+        // if (state == 0) {
+        //     Point next = combat_manager.findSwarmedMove(home_base);
+        //     if (next != null) return robo.move(next.x - me.x, next.y - me.y);
+        // }
 
         // recieved red alert at communication problems
         if (state == 11) {
@@ -205,9 +228,6 @@ public class Prophet {
             return robo.move(next_step.x - me.x, next_step.y - me.y);
         }
 
-        // if(state == 5){
-        //     //non shield defense units
-        // }
 
         // Nothing to do
         return null;
