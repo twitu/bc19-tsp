@@ -46,7 +46,7 @@ public class Crusader {
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
-        robo.log("Crusader: Map data acquired");
+        robo.log("Crusader: Initialization state " + Integer.toString(state));
 
         // Analyze map symmetry and get default direction
         if (manager.vsymmetry) {
@@ -75,6 +75,8 @@ public class Crusader {
 
     // Bot AI
     public Action AI() {
+        
+        this.me = robo.me;
         manager.updateData();
 
         // variables for iterators
@@ -111,7 +113,7 @@ public class Crusader {
         }
         
         if (closest != null) {
-            Point next = manager.findNextStep(me.x, me.y, MyRobot.nine_directions, false, new Point(closest.x, closest.y));
+            Point next = manager.findNextStep(me.x, me.y, MyRobot.nine_directions, false, true, new Point(closest.x, closest.y));
             return robo.move(next.x - me.x, next.y - me.y);
         }
 
@@ -133,7 +135,7 @@ public class Crusader {
             // while initial moves move towards enemy castle
             if (initial_move_count > 0) {
                 initial_move_count--;
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, enemy_castle);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, true, enemy_castle);
                 return robo.move(next.x - me.x, next.y - me.y);
             }
             state = 0;
@@ -141,13 +143,13 @@ public class Crusader {
 
         if (state == 3) {
             // move towards target location
-            Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, target_loc);
+            Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, true, target_loc);
             return robo.move(next.x - me.x, next.y - me.y);
         }
 
         if (state == 2) {
             // find number of steps to reach guard location
-            robo.log("found my guard loc moving there");
+            robo.log("guard location is x" + Integer.toString(guard_loc.x) + " y " + Integer.toString(guard_loc.y));
             guard_loc_count = manager.numberOfMoves(manager.me_location, guard_loc, MyRobot.adj_directions);
             state = 4;
         }
@@ -158,11 +160,9 @@ public class Crusader {
                 if (--guard_loc_count == 0) {
                     state = 0;
                 }
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.adj_directions, true, guard_loc);
-                if (next != null) {
-                    robo.log("I need to move " + Integer.toString(next.x - me.x) + "," + Integer.toString(next.y - me.y));
-                    return robo.move(next.x - me.x, next.y - me.y);
-                }
+                Point next = combat_manager.stepToGuardPoint(guard_loc, true, MyRobot.adj_directions);
+                robo.log("Next move to guard point x" + Integer.toString(next.x) + " y " + Integer.toString(next.y));
+                return robo.move(next.x - me.x, next.y - me.y);
             }
         }
 
@@ -174,23 +174,9 @@ public class Crusader {
         
         // populate the map
         if (state == 5) {
-            int count = 0;
-            boolean strike = false;
-            for (Point p: MyRobot.adj_directions) {
-                if (!checkBounds[me.y + p.y][me.x + p.x] || !manager.passable_map[me.y + p.y][me.x + p.x]
-                 || manager.vis_robot_map[me.y + p.y][me.x + p.x] > 0) {
-                    count++;
-                    strike = true;
-                } else if (strike) {
-                    break;
-                }
-            }
-            if (count >= 4) {
-                return null;
-            } else {
-                ArrayList<Point> edges = new ArrayList<>(edge);
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.adj_directions, true, edges);
-                return robo.move(next.x - me.x, next.y - me.y);            
+            Point next = manager.coulombRepel();
+            if (next != null) {
+                return robo.move(next.x - me.x, next.y - me.y);
             }
         }
 

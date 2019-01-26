@@ -51,9 +51,7 @@ public class Preacher {
     // Bot AI
     public Action AI() {
         this.me = robo.me;
-        manager.updateData();
-        robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
-        
+        manager.updateData();        
 
         // Get enemy list in range, identify target and attack if valid
         Point target = combat_manager.preacherTarget();
@@ -66,7 +64,7 @@ public class Preacher {
             // while initial moves move towards enemy castle
             if (initial_move_count > 0) {
                 initial_move_count--;
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, enemy_castle);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, true, enemy_castle);
                 return robo.move(next.x - me.x, next.y - me.y);
             }
             state = 0;
@@ -74,7 +72,7 @@ public class Preacher {
 
         if (state == 3) {
             // move towards target location
-            Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, target_loc);
+            Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, true, target_loc);
             if (next.equals(target_loc)) {
                 state = 0;
             }
@@ -83,7 +81,6 @@ public class Preacher {
 
         if(state == 2){
             // find number of steps to reach guard location
-            robo.log("found my guard loc moving there");
             guard_loc_count = manager.numberOfMoves(manager.me_location, guard_loc, MyRobot.adj_directions);
             state = 4;
         }
@@ -94,7 +91,7 @@ public class Preacher {
                 if (--guard_loc_count == 0) {
                     state = 0;
                 }
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.adj_directions, true, guard_loc);
+                Point next = combat_manager.stepToGuardPoint(guard_loc, true, MyRobot.adj_directions);
                 return robo.move(next.x - me.x, next.y - me.y);
             }
         }

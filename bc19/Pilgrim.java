@@ -146,7 +146,7 @@ public class Pilgrim {
                     robo.log("Need more resources - mining stead");
                     home = P;
                     status = 0;
-                    Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, mineLoc);
+                    Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, true, mineLoc);
                     if(next == null){
                         return null;
                     }
@@ -155,7 +155,7 @@ public class Pilgrim {
 
             // No? I need to move to target
             } else {                          
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false,  P);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, true,  P);
                 if ((next.x == P.x) &&(next.y == P.y)){
                     next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
                 }
@@ -193,21 +193,22 @@ public class Pilgrim {
             }
             
             // Am I in combat mode or carrying full capacity?
-            if((me.karbonite == 20 || me.fuel == 100) || (combat && (me.karbonite != 0 || me.fuel != 0)) || (emergency && (me.karbonite >= 10 || me.fuel >= 50))){
+            if((me.karbonite == 20 || me.fuel == 100) || (combat && (me.karbonite != 0 || me.fuel != 0)) ){
                 
                 // Deposit resources if adjacent to home
                 if(manager.isAdj(new Point(me.x,me.y),home)){
-                    emergency = false;
                     Robot r = robo.getRobot(manager.getRobotIdMap(home.x, home.y));
                     if(r!=null && (r.unit==robo.SPECS.CASTLE || r.unit==robo.SPECS.CHURCH) && r.team == me.team){
                         return robo.give(home.x - me.x , home.y - me.y, me.karbonite, me.fuel);
                     }
+                    if(!manager.buildable(robo.SPECS.CHURCH)) return null;
                     robo.signal(radio.assignDepot(mineLoc),2);
+                    emergency = false;
                     return robo.buildUnit(robo.SPECS.CHURCH, home.x-me.x, home.y-me.y);
                 }
                 
                 // Not adjacent? Go home
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false,  home);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, true,  home);
                 if(next.x == home.x && next.y == home.y){
                     next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions);
                     if(next == null){//maybe starvation
@@ -225,7 +226,7 @@ public class Pilgrim {
                 }
 
                 // Not on depot. Go to depot
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false,  mineLoc);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, true,  mineLoc);
                 return robo.move(next.x - me.x, next.y - me.y);
             }
         }

@@ -16,7 +16,7 @@ public class Castle {
     Comms radio;
 
     // Church extended Private Variables
-    public static int[] emergencyFund = {50, 200};
+    public static int[] emergencyFund = {75, 250};
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
     LinkedList<Point> dead_depots = new LinkedList<>();
@@ -30,11 +30,12 @@ public class Castle {
     int unit_no, mark,state,unit_type;
     int baseID;
     int[] unit_req;
-    int shield_range;
+    int shield_range, shield_size, shield_priority_count;
     int node_no;
 
     // Castle Variables
     ArrayList<Integer> castleClusters = new ArrayList<>();
+    ArrayList<Integer> churchClusters = new ArrayList<>();
     RefData refdata;
 
     // Initialization
@@ -61,7 +62,11 @@ public class Castle {
         state = 0;
         baseID = -1;
         node_no = 0;
-        shield_range = 10;
+        shield_range = 7;
+        priority = manager.getDangerPriority();
+        if(priority){
+            robo.log("high priority");
+        }
         
         // Record resource point locations
         castleClusters.add(resData.getID(me.x, me.y));
@@ -100,38 +105,6 @@ public class Castle {
             }
         }
 
-        //calculate distance from mid and set priority
-        if(manager.vsymmetry){
-            if(me.y > manager.map_length/2){
-                if(me.y > (3*manager.map_length/4)){
-                    priority = false;
-                }else{
-                    priority = true;
-                }
-            }else{
-                if(me.y < manager.map_length/4){
-                    priority = false;
-                }else{
-                    priority = true;
-                }
-
-            }
-        }else{
-            if(me.x > manager.map_length/2){
-                if(me.x > (3*manager.map_length/4)){
-                    priority = false;
-                }else{
-                    priority = true;
-                }
-            }else{
-                if(me.x < manager.map_length/4){
-                    priority = false;
-                }else{
-                    priority = true;
-                }
-
-            }
-        }
     }
 
     // Bot AI
@@ -141,9 +114,9 @@ public class Castle {
         manager.updateData();
         robo.castleTalk(radio.baseID(resData.getID(me.x, me.y)));
         
-        // If 600+ turns start populating
-        if (me.turn >= 600) {
-            state = 5;
+        // If 750+ turns start populating
+        if (me.turn >= 750) {
+            state = 6;
         }
 
         // Check for enemies and broadcast if under attack
@@ -181,53 +154,6 @@ public class Castle {
             }
         }
 
-        if (state < 10 && count_hostiles > 10) {
-            robo.signal(radio.yellowAlert(manager.me_location),manager.map_length);
-            state = 10;
-        } else if (state == 10 && count_hostiles > 10) {
-            robo.signal(radio.redAlert(manager.me_location),manager.map_length);
-            state = 11;
-        }
-
-        // check for new pilgrims and add to list
-        if(new_miner){
-            for(Robot r:manager.vis_robots){
-                if(r.unit==robo.SPECS.PILGRIM && r.team == me.team ){
-                    if(assigned_miners.contains(r.id)){ // old miner
-                        continue;
-                    }
-                    assigned_miners.add(r.id);
-                    robo.log("adding miner id:" + Integer.toString(r.id));
-                    new_miner=false;
-                    break;
-                }
-            }
-        }
-
-        //remove missing pilgrims  from list
-        for (int i=0;i<assigned_miners.size();i++){
-            boolean miss = true;
-            for(Robot r : manager.vis_robots){
-                if(r.id == assigned_miners.get(i)){
-                    miss = false;
-                    break;
-                }
-            }
-            if(miss){
-                // robo.log("missing pilgrim :id- " + Integer.toString(assigned_miners.get(i)));
-                Point p = assigned_depots.get(i);
-                dead_depots.add(p);
-                assigned_depots.remove(i);
-                assigned_miners.remove(i);
-                i--; // to compensate for the shift due to deletion
-            }
-        }
-
-        // Defense successful? Then go to normal mode but be alert
-        if (noCombat) {
-            combat = false;
-        }
-
         // Record assigned and active sites
         for (Robot bot: manager.vis_robots) {
             int ID;
@@ -238,7 +164,7 @@ public class Castle {
             }
             if ((bot.castle_talk % 8 == 2) && (me.turn <= 2)) {
                 ID = (int) (bot.castle_talk / 8);
-                if(state ==0){
+                if(state==0){
                     if(resData.midClusters.contains(ID)){
                         state = 1;
                     }
@@ -247,10 +173,17 @@ public class Castle {
                     castleClusters.add(ID);
                 }
             }
+            if (bot.castle_talk %8 == 1 && me.turn > 2) {
+                ID = (int) (bot.castle_talk / 8);
+                if (!churchClusters.contains(ID)) {
+                    churchClusters.add(ID);
+                }
+            }
         }
 
         // Check for currently marked target
         for (Robot bot: manager.vis_robots) {
+            if(!robo.isVisible(bot)) continue;
             if ((bot.id == mark) && refdata.inAttackRange(bot, me)) {
                 return robo.attack(bot.x - me.x, bot.y - me.y);
             }
@@ -260,9 +193,7 @@ public class Castle {
         Robot closest,prophet = null;
         int max_dist = Integer.MAX_VALUE;
         for (Robot bot: manager.vis_robots) {
-            if (!robo.isVisible(bot)) {
-                continue;
-            }
+            if(!robo.isVisible(bot)) continue;
             int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
             if (dist < max_dist) {
                 max_dist = dist;
@@ -283,6 +214,56 @@ public class Castle {
             }
             robo.signal(radio.prophetMark(mark), prophet.signal_radius);
             return robo.attack(closest.x - me.x, closest.y - me.y);
+        }
+
+        if (state < 10 && count_hostiles > 10) {
+            robo.signal(radio.yellowAlert(manager.me_location),manager.map_length);
+            state = 10;
+        } else if (state == 10 && count_hostiles > 10) {
+            robo.signal(radio.redAlert(manager.me_location),manager.map_length);
+            state = 11;
+        }
+
+        // check for new pilgrims and add to list
+        if(new_miner){
+            for(Robot r:manager.vis_robots){
+                if(!robo.isVisible(r)) continue;
+                if(r.id == me.id) continue;
+                if(r.unit==robo.SPECS.PILGRIM && r.team == me.team ){
+                    if(assigned_miners.contains(r.id)){ // old miner
+                        continue;
+                    }
+                    assigned_miners.add(r.id);
+                    // robo.log("adding miner id:" + Integer.toString(r.id));
+                    new_miner=false;
+                    break;
+                }
+            }
+        }
+
+        //remove missing pilgrims  from list
+        for (int i=0;i<assigned_miners.size();i++){
+            boolean miss = true;
+            for(Robot r : manager.vis_robots){
+                if(!robo.isVisible(r)) continue;
+                if(r.id == assigned_miners.get(i)){
+                    miss = false;
+                    break;
+                }
+            }
+            if(miss){
+                // robo.log("missing pilgrim :id- " + Integer.toString(assigned_miners.get(i)));
+                Point p = assigned_depots.get(i);
+                dead_depots.add(p);
+                assigned_depots.remove(i);
+                assigned_miners.remove(i);
+                i--; // to compensate for the shift due to deletion
+            }
+        }
+
+        // Defense successful? Then go to normal mode but be alert
+        if (noCombat) {
+            combat = false;
         }
 
         if(state == 0){//escort pilgrim-prophet
@@ -313,7 +294,58 @@ public class Castle {
                 }
             }
         }
+        
+        if(priority){
 
+            if(shield_priority_count > 0 ){
+                shield_priority_count --;
+                //count shield units
+                Integer proph_count = 0;
+                Integer preach_count = 0;
+
+                for(Robot r : manager.vis_robots){
+                    if(!robo.isVisible(r)) continue;
+                    if(r.team==me.team){
+                        if(r.unit==robo.SPECS.PREACHER){
+                            preach_count++;
+                        }if( r.unit == robo.SPECS.PROPHET){
+                            proph_count++;
+                        }
+                    }
+                }
+
+            if(preach_count < 2){
+                unit_type = robo.SPECS.PREACHER;
+                // If enough resources available, build a prophet
+                unit_req = RefData.requirements[unit_type];
+                    if (unit_req[0] <= robo.karbonite && unit_req[1] <= robo.fuel) {
+                        // robo.log("adding militia size :" + Integer.toString(assigned_militia.size()));
+                        Point emptyadj = manager.findEmptyAdj(me, false);
+                        // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+                        robo.signal(radio.stepsToEnemy(3),2);
+                        // robo.log("building preacher");
+                        return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+                    }
+            }else{
+                 if(proph_count < 4){
+                    unit_type = robo.SPECS.PROPHET;
+                    // If enough resources available, build a prophet
+                    unit_req = RefData.requirements[robo.SPECS.PREACHER];
+                    if (unit_req[0] <= robo.karbonite && unit_req[1] <= robo.fuel) {
+                        Point emptyadj = manager.findEmptyAdj(me, false);
+                        // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+                        robo.signal(radio.stepsToEnemy(3),2);
+                        // robo.log("building prophet");
+                        return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+                    }
+                }
+            }
+            // end priority turn
+            return null;
+            }else{
+                shield_priority_count = 2;
+            }
+        }
 
         if(state == 1 && manager.buildable(robo.SPECS.PILGRIM)){// mine self karb depots
             robo.log("state :1");
@@ -321,7 +353,6 @@ public class Castle {
             Point p = manager.findEmptyAdj(me,false);
             nextP = karb_depots.pollFirst();
             if(karb_depots.size()==0){
-                karbCap = true;
                 state=2;
             }
         
@@ -343,7 +374,7 @@ public class Castle {
             robo.log("state :2");
             // send a colonist pilgrim to an inactive base.
             unit_req = RefData.requirements[robo.SPECS.PILGRIM];
-            if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
+            if (unit_req[0] <= robo.karbonite && unit_req[1] <= robo.fuel) {
                 int baseID = resData.nextTargetID(me.x, me.y,false);
                 robo.signal(radio.baseAssignment(baseID, false), 2);
                 robo.castleTalk(radio.baseAssigned(baseID));
@@ -354,7 +385,6 @@ public class Castle {
 
 
         if(state == 3 && manager.buildable(robo.SPECS.PILGRIM)){// mine self fuel depots
-            robo.log("state :3");
             nextP = fuel_depots.pollFirst();                                        
             if(fuel_depots.size()==0){
                 fuelCap = true;
@@ -365,14 +395,15 @@ public class Castle {
             // Send the broadcast and build the unit
             robo.signal(radio.assignDepot(nextP), 2);
             assigned_depots.add(nextP);
-            robo.log("state : 3 here");
             new_miner = true;
             
             return robo.buildUnit(robo.SPECS.PILGRIM, p.x, p.y);
         }
 
         if (state == 4){
-            robo.log("state 4");
+            if(dead_depots.size() == 0){
+                state = 5;
+            }
             //reallocate dead depots                                   
             if(dead_depots.size()!=0 && manager.buildable(robo.SPECS.PILGRIM)){
                 nextP = dead_depots.pollFirst();
@@ -385,110 +416,47 @@ public class Castle {
                 // robo.log("state 4 reached here2");
                 return robo.buildUnit(robo.SPECS.PILGRIM, p.x, p.y);
             }
-
-            
-
-            Integer proph_count = 0;
-            Integer preach_count = 0;
-
-            //remove missing pilgrims or militia from list
-                for(Robot r : manager.vis_robots){
-                    if(r.team==me.team){
-                        if(r.unit==robo.SPECS.PREACHER){
-                            preach_count++;
-                        }if( r.unit == robo.SPECS.PROPHET){
-                            proph_count++;
-                        }
-                    }
-                }   
-
-                if(preach_count < 2){
-                    unit_type = robo.SPECS.PREACHER;
-                    // If enough resources available, build a prophet
-                    unit_req = RefData.requirements[unit_type];
-                    if(priority){
-                        if (unit_req[0] <= robo.karbonite && unit_req[1] <= robo.fuel) {
-                            // robo.log("adding militia size :" + Integer.toString(assigned_militia.size()));
-                            Point emptyadj = manager.findEmptyAdj(me, false);
-                            // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-                            robo.signal(radio.stepsToEnemy(3),2);
-                            // robo.log("building preacher");
-                            return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-                        }else{
-                            proph_count = 5; //prevent building prophets                            
-                        }
-                    }else{
-                        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
-                            // robo.log("adding militia size :" + Integer.toString(assigned_militia.size()));
-                            Point emptyadj = manager.findEmptyAdj(me, false);
-                            // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-                            robo.signal(radio.stepsToEnemy(3),2);
-                            // robo.log("building preacher");
-                            return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-                        }else{
-                            proph_count = 5; //prevent building prophets                            
-                        }
-                    }
-                }else{
-                     if(proph_count < 4){
-                    unit_type = robo.SPECS.PROPHET;
-                    // If enough resources available, build a prophet
-                    unit_req = RefData.requirements[robo.SPECS.PREACHER];
-                    if(priority){
-                        if (unit_req[0] <= robo.karbonite && unit_req[1] <= robo.fuel) {
-                            // robo.log("adding militia size :" + Integer.toString(assigned_militia.size()));
-                            Point emptyadj = manager.findEmptyAdj(me, false);
-                            // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-                            robo.signal(radio.stepsToEnemy(3),2);
-                            // robo.log("building prophet");
-                            return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-                        }
-                    }else{
-                        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
-                            // robo.log("adding militia size :" + Integer.toString(assigned_militia.size()));
-                            Point emptyadj = manager.findEmptyAdj(me, false);
-                            // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-                            robo.signal(radio.stepsToEnemy(3),2);
-                            // robo.log("building prophet");
-                            return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-                        }
-                    }
-                }
-            }
-                        
-
-
-            // int a = 0;
-            // int b = 0;
-            // if(a!=b){
-            //     if(priority){
-            //         unit_type = robo.SPECS.PROPHET;
-            //         unit_req = RefData.requirements[robo.SPECS.PREACHER];
-            //         if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)) {
-            //             // robo.log("adding militia size :" + Integer.toString(assigned_militia.size()));
-            //             Point emptyadj = manager.findEmptyAdj(me, false);
-            //             // unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-            //             robo.signal(radio.stepsToEnemy(3),2);
-            //             return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-            //         }
-            //     }
-
-            }
         }
 
         if (state == 5) {
-
-            Point emptyadj;
-            Point dest = node_location.get(node_no);
-
-            for(Point p:MyRobot.adj_directions){
-                if( ((p.y + me.y) - (p.x + me.x)) %2 == 0 ){
-                    emptyadj = p;
-                    break;
-                }
+            if(robo.fuel <= emergencyFund[1] || robo.karbonite <= emergencyFund[0] ){
+                return null;
             }
-            if(emptyadj != null && manager.buildable(robo.SPECS.PROPHET)){
-                return robo.buildUnit(robo.SPECS.PROPHET,emptyadj.x,emptyadj.y);
+            
+            Integer proph_count = 0;
+                Point emptyadj;
+                for(Robot r : manager.vis_robots){
+                    if(!robo.isVisible(r)) continue;
+                    if(r.team == me.team && r.unit == robo.SPECS.PROPHET){
+                        proph_count ++;
+                    }
+                }
+
+                if(proph_count > 20){
+                    return null;
+                }
+
+                for(Point p:MyRobot.adj_directions){
+                    if( ((p.y + me.y) - (p.x + me.x)) %2 == 0 ){//even chequered
+                        if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                            continue;
+                        }
+                        emptyadj = p;
+                        break;
+                    }
+                }
+                if(emptyadj != null && manager.buildable(robo.SPECS.PROPHET)){
+                    return robo.buildUnit(robo.SPECS.PROPHET,emptyadj.x,emptyadj.y);
+                }
+            
+        }
+
+        if (state == 6) {
+
+            Point emptyadj = manager.findEmptyAdj(me, false);
+            if (emptyadj != null) {
+                robo.signal(radio.crusaderDummy(), 2);
+                return robo.buildUnit(robo.SPECS.CRUSADER, emptyadj.x, emptyadj.y);                        
             }
         }
 

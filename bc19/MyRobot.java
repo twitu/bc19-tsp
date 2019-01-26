@@ -114,10 +114,6 @@ public class MyRobot extends BCAbstractRobot {
             refdata = new RefData();
             resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry);
 
-            if(me.unit == SPECS.PREACHER){
-                log("Preacher: Map data acquired1");
-            }
-
             // for military units
             if (me.unit == SPECS.PROPHET || me.unit == SPECS.PREACHER || me.unit == SPECS.CRUSADER) {
                 state = 0;
@@ -128,6 +124,7 @@ public class MyRobot extends BCAbstractRobot {
                 home_base = null;
                 target_loc = null;
                 Robot base = combat_manager.baseCastleChurch();
+                home_base = new Point(base.x, base.y);
                 if (base != null && this.isRadioing(base)) {
                     if (base.unit == this.SPECS.CASTLE) {
                         home_castle = new Point(base.x, base.y);

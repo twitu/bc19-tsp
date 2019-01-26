@@ -24,14 +24,12 @@ public class Church {
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
     LinkedList<Point> dead_depots = new LinkedList<>();
-    boolean fuelCap, karbCap, combat,new_miner,priority;
+    boolean fuelCap, karbCap, combat,new_miner, danger_priority;
     ArrayList<Integer> assigned_miners = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     int unit_no, state, node_no;
     ArrayList<Point> node_location;
-    int shield_range, shield_size;
-    int shield_priority_count;
-    boolean priority;
+    int shield_range, shield_size, shield_priority_count;
 
     // Initialization
     public Church(MyRobot robo) {
@@ -48,12 +46,14 @@ public class Church {
         this.resData = robo.resData;
         this.shield_size = 6;
         this.shield_priority_count = 2;
-
+        this.danger_priority = manager.getDangerPriority();
+        if(danger_priority){
+            robo.log("high priority");
+        }
         // Process and store depot clusters
         robo.log("Church: Map data acquired");
 
         // Initialize church
-        robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
         combat = false;
         new_miner = false;
         unit_no = 0;
@@ -134,42 +134,12 @@ public class Church {
         }
 
         for (Point p: possible_nodes) {
-            if (manager.checkBounds(me.x + p.x, me.y + p.y)) {
-                node_location.add(new Point(me.x + p.x, me.y + p.y));
-            }
-        }
-
-        //calculate distance from mid and set priority
-        if(manager.vsymmetry){
-            if(me.y > manager.map_length/2){
-                if(me.y > (3*manager.map_length/4)){
-                    priority = false;
-                }else{
-                    priority = true;
-                }
-            }else{
-                if(me.y < manager.map_length/4){
-                    priority = false;
-                }else{
-                    priority = true;
-                }
+            Point next = p.add(manager.me_location);
+            if (!manager.checkBounds(next.x, next.y)) continue;
+            if (!manager.passable_map[next.y][next.x]) {
 
             }
-        }else{
-            if(me.x > manager.map_length/2){
-                if(me.x > (3*manager.map_length/4)){
-                    priority = false;
-                }else{
-                    priority = true;
-                }
-            }else{
-                if(me.x < manager.map_length/4){
-                    priority = false;
-                }else{
-                    priority = true;
-                }
-
-            }
+            node_location.add(new Point(me.x + p.x, me.y + p.y));
         }
     }
 
@@ -179,54 +149,63 @@ public class Church {
         this.me = robo.me;
         manager.updateData();
         robo.castleTalk(radio.baseID(resData.getID(me.x, me.y)));
+        boolean low_defense = false;
 
-        int defence_count = 0;
-        for(Robot r : manager.vis_robots){
-            if (!robo.isVisible(r)) continue;
-            if(r.team==me.team && (r.unit==robo.SPECS.PREACHER || r.unit == robo.SPECS.PROPHET || r.unit == robo.SPECS.CRUSADER)){
-                defence_count++;
-            }
-        }
-
-        if (defence_count < shield_size) {
-            state = 1;
-        }
-
-        if (state == 1) {
-            if (priority) {
-                
-            }
-        }
-        
-        // TODO: Pilgrim Tacking: Keep track of pilgrims
-        // Produce pilgrims
-        if (priority && ((state == 0) || (state == 2))) {
-            // prioritize shield over economy
-            if(assize < 6){
-                // Set up defences
-                int unit_type = MyRobot.tiger_squad[unit_no];
-                unit_req = RefData.requirements[unit_type];
-                if (1==1) {
-                    robo.log("reached here");
-                    Point emptyadj = manager.findEmptyAdj(me, false);
-                    if(emptyadj == null){
-                        return null;
+        // check for new miner created in previous turn
+        if(new_miner){
+            for(Robot r:manager.vis_robots){
+                if (!robo.isVisible(r)) continue;
+                if(r.unit==robo.SPECS.PILGRIM && r.team == me.team ){
+                    if(assigned_miners.contains(r.id)){ // old miner
+                        continue;
                     }
-                    unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-
-                    // signal position
-                    Point dest = node_location.get(node_no);
-                    robo.log("unit destination is x " + Integer.toString(dest.x) + "y " + Integer.toString(dest.y));
-                    robo.signal(radio.assignGuard(dest), 2);
-                    node_no = (++node_no) % node_location.size();
-                    return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
+                    assigned_miners.add(r.id);
+                    new_miner=false;
+                    break;
                 }
             }
         }
-        robo.log("karbs is " + Integer.toString(karb_depots.size()) + "fuel is " + Integer.toString(fuel_depots.size()));
+
+        if (danger_priority) {
+            int defence_count = 0;
+            for(Robot r : manager.vis_robots){
+                if (!robo.isVisible(r)) continue;
+                if(r.team==me.team && (r.unit==robo.SPECS.PREACHER || r.unit == robo.SPECS.PROPHET || r.unit == robo.SPECS.CRUSADER)){
+                    defence_count++;
+                }
+            }
+
+            if (defence_count < shield_size) {
+                robo.log("low on defense with shield units " + Integer.toString(defence_count));
+                low_defense = true;
+            }
+
+            if (low_defense && state != shield_priority_count) {
+                state++;
+                // make shield units until state is not in shield priority count
+                int unit_type = MyRobot.tiger_squad[unit_no];
+                Point emptyadj = manager.findEmptyAdj(me, false);
+                if(emptyadj == null){
+                    return null;
+                }
+                unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+
+                // signal position
+                Point dest = node_location.get(node_no);
+                robo.signal(radio.assignGuard(dest), 2);
+                node_no = (++node_no) % node_location.size();
+                return robo.buildUnit(unit_type, emptyadj.x, emptyadj.y);
+            }
+
+            // reset state if one round of shield building is complete
+            if (state == shield_priority_count && low_defense) {
+                state = 0;
+            }
+        }
+        
+        // fill all depots with pilgrims
         int[] unit_req = RefData.requirements[robo.SPECS.PILGRIM];
-        if ((emergencyFund[0] + unit_req[0]) <= robo.karbonite && (emergencyFund[1] + unit_req[1] <= robo.fuel)
-         && (!fuelCap || !karbCap)) {
+        if ((!fuelCap || !karbCap) && (robo.karbonite >= unit_req[0] && robo.fuel >= unit_req[1])) {
             Point p = manager.findEmptyAdj(me, true);
             if(p != null){
                 Point depot_loc = null;
@@ -244,25 +223,13 @@ public class Church {
                     // Send the broadcast and build the unit
                     robo.signal(radio.assignDepot(depot_loc), 2);
                     assigned_depots.add(depot_loc);
+                    new_miner = true;
                     return robo.buildUnit(robo.SPECS.PILGRIM, p.x, p.y);
                 }
             }
         }
 
 
-         // check for new pilgrims and add to list
-         if(new_miner){
-            for(Robot r:manager.vis_robots){
-                if(r.unit==robo.SPECS.PILGRIM && r.team == me.team ){
-                    if(assigned_miners.contains(r.id)){ // old miner
-                        continue;
-                    }
-                    assigned_miners.add(r.id);
-                    new_miner=false;
-                    break;
-                }
-            }
-        }
 
         // //remove missing pilgrims from list
         // for (int i=0;i<assigned_miners.size();i++){
@@ -282,36 +249,6 @@ public class Church {
         //         i--; // to compensate for the shift due to deletion
         //     }
         // }
-        Integer assize = 0;
-
-        //track  pilgrims
-        //remove missing pilgrims from list
-        for(Robot r : manager.vis_robots){
-            if(r.team==me.team && (r.unit==robo.SPECS.PREACHER || r.unit == robo.SPECS.PROPHET)){
-                assize++;
-            }
-        }
-
-        if(assize < 6){
-            // Set up defences
-            int unit_type = MyRobot.tiger_squad[unit_no];
-            unit_req = RefData.requirements[unit_type];
-            if (1==1) {
-                robo.log("reached here");
-                Point emptyadj = manager.findEmptyAdj(me, false);
-                if(emptyadj == null){
-                    return null;
-                }
-                unit_no = (++unit_no) % MyRobot.tiger_squad.length;
-
-                // signal position
-                Point dest = node_location.get(node_no);
-                robo.log("unit destination is x " + Integer.toString(dest.x) + "y " + Integer.toString(dest.y));
-                robo.signal(radio.assignGuard(dest), 2);
-                node_no = (++node_no) % node_location.size();
-                return robo.buildUnit(unit_type, emptyadj.x,emptyadj.y);
-            }
-        }
 
         // If confused, sit tight
         return null;

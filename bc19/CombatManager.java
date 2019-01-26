@@ -68,7 +68,7 @@ public class CombatManager {
 
         if (dangerous != null) {
             Point dest = new Point(dangerous.x, dangerous.y);
-            Point next = robo.manager.findNextStep(robo.me.x, robo.me.y, MyRobot.four_directions, false,  dest);
+            Point next = robo.manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, true, dest);
             retreat = new Point(-next.x, -next.y);
         }
 
@@ -117,13 +117,22 @@ public class CombatManager {
             if (robo.manager.getRobotIdMap(adj.x,adj.y) > 0) {
                 Robot bot = robo.getRobot(robo.manager.getRobotIdMap(adj.x,adj.y));
                 if (bot.team == robo.me.team) count++;
-                if (count >= 6) {
+                if (count >= 5) {
                     return manager.findFarthestMove(manager.me_location, home_base, MyRobot.adj_directions);
                 }
             }
         }
 
         return null;
+    }
+
+    public Point stepToGuardPoint(Point guard_loc, boolean avoidmines, Point[] directions) {
+        Point next = manager.findNextStep(manager.me_location.x, manager.me_location.y, directions, true, true, guard_loc);
+        if (next == null) {
+            next = manager.findNextStepToPoint(manager.me_location, directions, avoidmines, guard_loc);
+        }
+
+        return next;
     }
 
     public Point findNextSafePoint(Robot me, Robot other, boolean closest) {

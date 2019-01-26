@@ -16,7 +16,7 @@ public class Prophet {
     RefData refdata;
     int mark;
     int state;
-    int lattice_radius = 7;
+    int lattice_radius = 50;
     Point home_castle;
     Point enemy_castle;
     Point guard_loc;
@@ -83,7 +83,6 @@ public class Prophet {
         
         this.me = robo.me;        
         manager.updateData();
-        robo.log("I am at " + Integer.toString(me.x) + "," + Integer.toString(me.y));
 
         // Listen on comms for emergency signals from castle
         if (state <= 10) {
@@ -158,18 +157,18 @@ public class Prophet {
             // while initial moves move towards enemy castle
             if (initial_move_count > 0) {
                 initial_move_count--;
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, enemy_castle);
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, true, enemy_castle);
                 return robo.move(next.x - me.x, next.y - me.y);
             }
-            state = 0;
+            state = 5;
         }
 
         if (state == 3) {
             // move towards target location
-            Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, target_loc);
+            Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, true, target_loc);
             // robo.log("found my target loc moving there :" + Integer.toString(next.y) +", " + Integer.toString(next.x));
             if (next.equals(target_loc)) {
-                state = 0;
+                state = 5;
             } else {
                 return robo.move(next.x - me.x, next.y - me.y);
             }
@@ -178,7 +177,6 @@ public class Prophet {
         if(state == 2){
             // find number of steps to reach guard location
             guard_loc_count = manager.numberOfMoves(manager.me_location, guard_loc, MyRobot.adj_directions);
-            robo.log("guard log count :" + Integer.toString(guard_loc_count));
             state = 4;
         }
 
@@ -186,36 +184,109 @@ public class Prophet {
             // move calculated number of steps towards destination
             if (guard_loc_count > 0) {
                 if (--guard_loc_count == 0) {
-                    state = 0;
+                    state = 5;
                 }
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.adj_directions, true, guard_loc);
+                Point next = combat_manager.stepToGuardPoint(guard_loc, true, MyRobot.adj_directions);
+                robo.log("Next move to guard point x" + Integer.toString(next.x) + " y " + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
             }
         }
 
         if(state == 0){
-            //lattice
-            // determine max x or y reachable
-                    //do not move below lim
+
+
+            // Check for enemy bots and attack if enemy in range
+            closest = null;
+            max_dist = Integer.MAX_VALUE;
+            for (Robot bot: manager.vis_robots) {
+                if(!robo.isVisible(bot)) continue;
+                int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
+                if (dist < max_dist) {
+                    max_dist = dist;
+                    if(bot.team != me.team && refdata.inAttackRange(bot, me)){
+                    closest = bot;
+                    }
+                }
+            }
+            if (closest != null) {
+                return robo.attack(closest.x - me.x, closest.y - me.y);
+            }
+
+
+
+
+
+            boolean isolated = true;
+            for(Point p : MyRobot.adj_directions){
+                if(manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                    isolated = false;
+                    break;
+                }
+            }
+
+            if(!isolated) {
+                //if not isolated can move
+                Point prev = new Point(home_base.x,home_base.y);
+                //lattice
+                // determine max x or y reachable
+                //do not move below lim
+                for(Point p : MyRobot.diag_directions){
+                    if(prev.equals(new Point(p.x + me.x , p.y + me.y) ) ) {
+                        prev = home_base;
+                        continue;
+                    }
+                    if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                        continue;
+                    }
+                    if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
+                        //do not move further from lattice radius
+                        continue;
+                    }if( towardsEnemy( me.x,me.y,me.x+p.x,me.y+p.y) ){
+                        //if moving towards enemy
+                        return robo.move(p.x,p.y);
+                    }
+                }
+                if(me.turn%10 == 0){
                     for(Point p : MyRobot.diag_directions){
                         if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
                             continue;
                         }
-                        if( home.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
+                        if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
                             //do not move further from lattice radius
                             continue;
                         }
-                        if(((p.x + me.x - home_base.x)*(p.x + me.x - home_base.x) + (p.y + me.y - home_base.y)*(p.y + me.y - home_base.y)) > ((me.x - home_base.x)*(me.x - home_base.x) + (me.y - home_base.y)*(me.y - home_base.y))){
-                            //if moving farther from home_base
-                            return robo.move(p.x,p.y);
+                        if(manager.vsymmetry){
+                            if(home_base.y > manager.map_length/2){
+                                if((p.y + me.y) > home_base.y){
+                                    
+                                }
+                            }
+                        }
+                        prev = manager.me_location;
+                        //spread at turn 3
+                        return robo.move(p.x,p.y);
+                    }
+                }
+            }
+
+
+            if(me.karbonite != 0 || me.karbonite != 0){
+                for(Point p : MyRobot.diag_directions){
+                    if(manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                        if( home_base.dist(manager.me_location) > home_base.dist(new Point(me.x+p.x,me.y+p.y)) ){
+                            return robo.give(p.x,p.y,me.karbonite,me.fuel);
                         }
                     }
                 }
-        // // current swarm is hard coded to 6
-        // if (state == 0) {
-        //     Point next = combat_manager.findSwarmedMove(home_base);
-        //     if (next != null) return robo.move(next.x - me.x, next.y - me.y);
-        // }
+
+            }
+            
+        }
+        // current swarm is hard coded to 6
+        if (state == 5) {
+            Point next = combat_manager.findSwarmedMove(home_base);
+            if (next != null) return robo.move(next.x - me.x, next.y - me.y);
+        }
 
         // recieved red alert at communication problems
         if (state == 11) {
@@ -224,7 +295,7 @@ public class Prophet {
         }
 
         if (state == 12) {
-            Point next_step = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, attack_point);
+            Point next_step = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, true, attack_point);
             return robo.move(next_step.x - me.x, next_step.y - me.y);
         }
 
@@ -232,4 +303,40 @@ public class Prophet {
         // Nothing to do
         return null;
     }
+
+    public boolean towardsEnemy(int x1,int y1,int x2,int y2){
+        //return true if 2 is closer to the enemy
+        if(manager.vsymmetry){
+            if(home_base.y > manager.map_length/2){
+                if(y2<y1){
+                    return true;
+                }else{
+                    return false;
+                }
+            }else{
+                if(y2>y1){
+                    return true;
+                }else{
+                    return false;
+                }
+            }
+        }else{
+            if(home_base.x > manager.map_length/2){
+                if(x2<x1){
+                    return true;
+                }else{
+                    return false;
+                }
+            }else{
+                if(x2>x1){
+                    return true;
+                }else{
+                    return false;
+                }
+            }
+
+        }
+
+    }
+
 }

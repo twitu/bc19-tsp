@@ -3,6 +3,7 @@ package bc19;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Arrays;
+import java.lang.Math;
 
 public class Management {
 
@@ -13,12 +14,13 @@ public class Management {
     //  Point findEmptyAdj(Robot me, boolean preferDepot);
     //  Point findEmptyAdj(Point dest, boolean preferDepot);
     //  boolean isAdj(Point a, Point b);
-    //  Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, LinkedList<Point> src);
-    //  Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, Point P);
+    //  Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, boolean avoidbots, LinkedList<Point> src);
+    //  Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, boolean avoidbots, Point P);
     //  int squareDistance(Robot bot, Point other);
     //  boolean[][] copyMap(boolean[][] map);
     //  Point findEmptyNextAdj(Point dest, Point src, Point[] moves);
     //  boolean buildable(int type);
+    //  boolean getPriority();
     //  boolean checkBounds(int x, int y);
     //  Point oppPoint(int x, int y);
     //  Point findOffsetClosest(Point src, int range, Point dest, int offset)
@@ -131,14 +133,14 @@ public class Management {
 
     // Find next point to move to closest source in given list
     // choose r^2=4 moves when r_four is true
-    public Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, ArrayList<Point> src) {
+    public Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, boolean avoidbots, ArrayList<Point> src) {
         Point current, next = new Point(x, y);
         Point result;
         boolean[][] map = copyMap(passable_map);
 
         for (int i = 0; i < map_length; i++) {
             for (int j = 0; j < map_length; j++) {
-                if (vis_robot_map[i][j] > 0) {
+                if (avoidbots && vis_robot_map[i][j] > 0) {
                     map[i][j] = false;
                 }
                 if(avoidmine && (fuel_map[i][j] || karbo_map[i][j])){
@@ -152,7 +154,7 @@ public class Management {
             current = src.get(i);
             for (Point p: directions) {
                 next = new Point(current.x + p.x, current.y + p.y);
-                if (next.x >= 0 && next.x < map_length && next.y >= 0 && next.y < map_length) {
+                if (checkBounds(next.x, next.y)) {
                     if (next.x == x && next.y == y) {
                         // if(!avoidmine){
                         return current;
@@ -179,10 +181,28 @@ public class Management {
 
     // Find next point to move to given point
     // choose r^2=4 moves when r_four is true
-    public Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, Point P) {
+    public Point findNextStep(int x, int y, Point[] directions, boolean avoidmine, boolean avoidbots, Point P) {
         ArrayList<Point> temp = new ArrayList<>();
         temp.add(P);
-        return findNextStep(x, y, directions, avoidmine, temp);
+        return findNextStep(x, y, directions, avoidmine, avoidbots, temp);
+    }
+
+    public Point findNextStepToPoint(Point current, Point[] directions, boolean avoidmines, Point dest) {
+        int min_dist = current.dist(dest), dist = 0;
+        Point closest = current;
+        for (Point p: directions) {
+            Point next = p.add(me_location);
+            if (!checkBounds(next.x, next.y)) continue;
+            if (avoidmines && (!fuel_map[next.y][next.x] || !karbo_map[next.y][next.x])) continue;
+            if (!passable_map[next.y][next.x]) continue;
+            dist = next.dist(dest);
+            if (dist < min_dist) {
+                min_dist = dist;
+                closest = next;
+            }
+        }
+
+        return closest;
     }
 
     // Square distance between two points represented by robot and point
@@ -231,7 +251,7 @@ public class Management {
                 return true;
             } else return false;
         }else if(type == 3){//crusader
-            if (robo.karbonite >= 20 && robo.fuel >= 50){
+            if (robo.karbonite >= 15 && robo.fuel >= 50){
                 return true;
             } else return false;
         }else if(type == 4){//prophet
@@ -340,5 +360,72 @@ public class Management {
             }
             i++;
         }
+    }
+
+    boolean getDangerPriority(){
+        // strip for 1/3
+        //calculate distance from mid and set priority
+        if(vsymmetry){
+            if(me.y > map_length/2){
+                if(me.y > (2*map_length/3)){
+                    return false;
+                }else{
+                    return true;
+                }
+            }else{
+                if(me.y < map_length/3){
+                    return false;
+                }else{
+                    return true;
+                }
+
+            }
+        }else{
+            if(me.x > map_length/2){
+                if(me.x > (2*map_length/3)){
+                    return false;
+                }else{
+                    return true;
+                }
+            }else{
+                if(me.x < map_length/3){
+                    return false;
+                }else{
+                    return true;
+                }
+
+            }
+        }
+    }
+
+    public Point coulombRepel() {
+        boolean stay_put = true;
+        Point next;
+        Point dest = null;
+        int max_score = 0;
+        ArrayList<Point> possible_moves = new ArrayList<>();
+        for (Point p: MyRobot.adj_directions) {
+            next = p.add(me_location);
+            if (checkBounds(next.x, next.y)) continue;
+            if (vis_robot_map[next.y][next.x] >= 0) stay_put = false;
+            if (vis_robot_map[next.y][next.x] == 0 && !passable_map[next.y][next.x] && !fuel_map[next.y][next.x] && !karbo_map[next.y][next.x]) {
+                int score = 0;
+                for (Point q: MyRobot.adj_directions) {
+                    if (vis_robot_map[next.y + q.y][next.x + q.x] > 0) {
+                        score++;
+                    }
+                }
+                if (score > max_score) {
+                    max_score = score;
+                    dest = next;
+                }                
+            }
+        }
+
+        if (stay_put) {
+            return null;
+        }
+
+        return dest;
     }
 }
