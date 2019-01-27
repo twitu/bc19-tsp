@@ -1,5 +1,7 @@
 package bc19;
 
+import java.util.ArrayList;
+
 public class CombatManager {
 
     MyRobot robo;
@@ -109,6 +111,171 @@ public class CombatManager {
         }
     }
 
+    public Robot closestEnemyToDefend(Point current) {
+        int min_dist = Integer.MAX_VALUE;
+        int dist;
+        Robot chosen = null;
+        for (Robot bot: manager.vis_robots) {
+            if (!robo.isVisible(bot) || bot.team == me.team) continue;
+            if (refdata.inAttackRange(manager.me_location, bot)){
+                dist = (current.x - bot.x)*(current.x - bot.x) + (current.y - bot.y)*(current.y - bot.y);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    chosen = bot;
+                }
+            }
+        }
+
+        return chosen;
+    }
+
+    public Robot closestVisibleEnemy(Point current) {
+        int min_dist = Integer.MAX_VALUE;
+        int dist;
+        Robot chosen = null;
+        for (Robot bot: manager.vis_robots) {
+            if (!robo.isVisible(bot) || bot.team == me.team) continue;
+            if (refdata.inVisibleRange(bot, manager.me)) {
+                dist = (current.x - bot.x)*(current.x - bot.x) + (current.y - bot.y)*(current.y - bot.y);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    chosen = bot;
+                }
+            }
+        }
+
+        return chosen;
+    }
+
+    public ArrayList<Robot> visibleEnemies(Robot me) {
+        ArrayList<Robot> enemies = new ArrayList<>();
+        for (Robot bot: manager.vis_robots) {
+            if (!robo.isVisible(bot) || bot.team == me.team) continue;
+            enemies.add(bot);
+        }
+        return enemies;
+    }
+
+    public ArrayList<Robot> defendFromEnemies(Robot me, ArrayList<Robot> visible) {
+        ArrayList<Robot> enemies = new ArrayList<>();
+        for (Robot bot: visible) {
+            if (refdata.inAttackRange(me, bot)) {
+                enemies.add(bot);
+            }
+        }
+        return enemies;
+    }
+
+    public Robot closestEnemy(Robot me, ArrayList<Robot> bots) {
+        Robot chosen = null;
+        int min_dist = Integer.MIN_VALUE, dist = 0;
+        for (Robot bot: bots) {
+            dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
+            if (dist < min_dist) {
+                chosen = bot;
+            }
+        }
+
+        return chosen;
+    }
+
+    public ArrayList<Robot> visibleAllyList(Robot me) {
+        ArrayList<Robot> allies = new ArrayList<>();
+        for (Robot bot: manager.vis_robots) {
+            if (!robo.isVisible(bot) && bot.team != me.team) continue;
+            allies.add(bot);
+        }
+        return allies;
+    }
+
+    public ArrayList<Robot> checkVisibleUnit(int unit, ArrayList<Robot> visible) {
+        ArrayList<Robot> allies = new ArrayList<>();
+        for (Robot bot: visible) {
+            if (bot.unit == unit) {
+                allies.add(bot);
+            }
+        }
+        return allies;
+    }
+
+    public int countVisibleUnit(int unit, ArrayList<Robot> visible) {
+        int count = 0;
+        for (Robot bot: visible) {
+            if (bot.unit == unit) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public ArrayList<Robot> checkRadioAllies(ArrayList<Robot> bots, int signal) {
+        ArrayList<Robot> allies = new ArrayList<>();
+        for (Robot bot: bots) {
+            if (robo.isRadioing(bot) && bot.signal%16 == signal) {
+                allies.add(bot);
+            }
+        }
+        return allies;
+    }
+
+
+    public ArrayList<Robot> unitsInRange(Point current, int range, ArrayList<Robot> bots) {
+        ArrayList<Robot> units = new ArrayList<>();
+        for (Robot bot: bots) {
+            if ((current.x - bot.x)*(current.x - bot.x) + (current.y - bot.y)*(current.y - bot.y) <= range) {
+                units.add(bot);
+            }
+        }
+        return units;
+    }
+
+
+    public Robot closestEnemyToAttack(Point current) {
+        int min_dist = Integer.MAX_VALUE;
+        int dist;
+        Robot chosen = null;
+        for (Robot bot: manager.vis_robots) {
+            if (!robo.isVisible(bot) || bot.team == me.team) continue;
+            if (refdata.inAttackRange(bot, manager.me)){
+                dist = (current.x - bot.x)*(current.x - bot.x) + (current.y - bot.y)*(current.y - bot.y);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    chosen = bot;
+                }
+            }
+        }
+
+        return chosen;
+    }
+
+    public Robot closestEnemy(Point current, ArrayList<Robot> bots) {
+        int min_dist = Integer.MAX_VALUE;
+        int dist;
+        Robot chosen = null;
+        for (Robot bot: bots) {
+            dist = (current.x - bot.x)*(current.x - bot.x) + (current.y - bot.y)*(current.y - bot.y);
+            if (dist < min_dist) {
+                min_dist = dist;
+                chosen = bot;
+            }
+        }
+
+        return chosen;
+    }
+
+    public Point markedTarget(int mark, Robot me) {
+        Point marked = null;
+        for (Robot bot: manager.vis_robots) {
+            if (!robo.isVisible(bot) || bot.team == me.team) continue;
+            int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
+            if (bot.id == mark && dist<=64 && dist >= 16 && bot.team == me.team) {
+                marked = new Point(bot.x, bot.y);
+            }
+        }
+
+        return marked;
+    }
+
     public Point findSwarmedMove(Point home_base) {
         int count = 0;
         Point adj = null;
@@ -135,8 +302,57 @@ public class CombatManager {
         return next;
     }
 
-    public Point findNextSafePoint(Robot me, Robot other, boolean closest) {
-        Point[] directions = (RefData.speed[me.unit] == 4) ? MyRobot.four_directions : MyRobot.nine_directions;
+    public Point nextSafeStep(Robot me, ArrayList<Robot> enemies, Point[] directions, boolean closest) {
+        Point chosen = null, next = null;
+        int dist = 0;
+        if (closest) {
+            int min_dist = Integer.MAX_VALUE;
+            for (Point p: directions) {
+                next = p.add(manager.me_location);
+                boolean flag = true;
+                if (manager.checkBounds(next.x, next.y) && manager.passable_map[next.y][next.x] && manager.vis_robot_map[next.y][next.x] <= 0) {
+                    for (Robot enemy: enemies) {
+                        if (refdata.inAttackRange(next, enemy)){ 
+                            flag = false;
+                            break;
+                        }
+                    }
+                    if (flag) {
+                        dist = next.dist(manager.me_location);
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            chosen = next;
+                        }
+                    }
+                }
+            }
+        } else {
+            int max_dist = Integer.MIN_VALUE;
+            for (Point p: directions) {
+                next = p.add(robo.manager.me_location);
+                boolean flag = true;
+                if (manager.checkBounds(next.x, next.y) && manager.passable_map[next.y][next.x] && manager.vis_robot_map[next.y][next.x] <= 0) {
+                    for (Robot enemy: enemies) {
+                        if (refdata.inAttackRange(next, enemy)){ 
+                            flag = false;
+                            break;
+                        }
+                    }
+                    if (flag) {    
+                        dist = next.dist(manager.me_location);
+                        if (dist > max_dist) {
+                            max_dist = dist;
+                            chosen = next;
+                        }
+                    }
+                }
+            }
+        }
+
+        return chosen;
+    }
+
+    public Point findNextSafePoint(Robot me, Robot other, Point[] directions, boolean closest) {
         Point chosen = null, next = null;
         int dist = 0;
         if (closest) {

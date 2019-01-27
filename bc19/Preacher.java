@@ -19,8 +19,9 @@ public class Preacher {
     int state;
     int initial_move_count;
     Point home_castle, enemy_castle,home_base;
-    Point guard_loc, target_loc;
+    Point guard_loc, target_loc, return_loc;
     int guard_loc_count;
+    boolean panther_mode;
 
     // Initialization
     public Preacher(MyRobot robo) {
@@ -46,6 +47,8 @@ public class Preacher {
         resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
         refdata = new RefData();
         robo.log("Preacher: Map data acquired");
+        panther_mode = false;
+
     }
 
     // Bot AI
@@ -57,6 +60,17 @@ public class Preacher {
         Point target = combat_manager.preacherTarget();
         if (target != null) {
             return robo.attack(target.x - me.x, target.y - me.y);            
+        }
+
+        // Check for Panther Alert
+        for (Robot bot: manager.vis_robots) {
+            if (!robo.isVisible(bot) || me.team != bot.team || !robo.isRadioing(bot)) continue;
+            if (bot.signal % 16 == 12) {
+                guard_loc = radio.decodePantherStrike(bot.signal);
+                panther_mode = true;
+                return_loc = manager.me_location;
+                state = 2;
+            }
         }
 
         // move initial number of moves
@@ -89,7 +103,13 @@ public class Preacher {
             // move calculated number of steps towards destination
             if (guard_loc_count > 0) {
                 if (--guard_loc_count == 0) {
-                    state = 0;
+                    if (panther_mode) {
+                        guard_loc = return_loc;
+                        panther_mode = false;
+                        state = 2;
+                    } else {
+                        state = 0;
+                    }
                 }
                 Point next = combat_manager.stepToGuardPoint(guard_loc, true, MyRobot.adj_directions);
                 return robo.move(next.x - me.x, next.y - me.y);
@@ -98,7 +118,15 @@ public class Preacher {
 
         // current swarm is hard coded to 6
         if (state == 0) {
-            Point next = combat_manager.findSwarmedMove(home_base);
+            Point next;
+            // if nothing else to do pass resources to home base
+            if (me.karbonite > 5 || me.fuel > 20) {
+                next = manager.chainGive();
+                if (next!=null) {
+                    return robo.give(next.x, next.y, me.karbonite, me.fuel);
+                }
+            }
+            next = combat_manager.findSwarmedMove(home_base);
             if (next != null) return robo.move(next.x - me.x, next.y - me.y);
         }
 

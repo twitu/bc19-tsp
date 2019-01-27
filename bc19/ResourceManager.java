@@ -104,7 +104,7 @@ public class ResourceManager {
     }
 
     // Classify clusters into pairs of home, enemy.
-    public void pairClusters(int x, int y, int map_length, boolean vsymmetry) {
+    public void pairClusters(int x, int y, int map_length, boolean vsymmetry, Management manager) {
         Cluster Dual;
         int ID;
         for (Cluster D : resourceList) {
@@ -138,18 +138,20 @@ public class ResourceManager {
         }
         targets = new ArrayList<>(homeClusters);
         midTargets = new ArrayList<>(midClusters);
+        relocateMidClusters(manager);
     }
 
     // Get the next cluster to target
     public int nextTargetID(int x, int y, boolean mid) {
-        int dist, out = Integer.MAX_VALUE, max_dist = Integer.MAX_VALUE;
+        int karbo, out = Integer.MAX_VALUE, min_karbo = Integer.MIN_VALUE;
+        int dist, max_dist = Integer.MAX_VALUE;
         if (mid) {
             for (int i: midTargets) {
                 Cluster D = resourceList.get(i);
-                dist = (D.locX - x)*(D.locX - x) + (D.locY - y)*(D.locY - y);
-                if (dist < max_dist) {
+                karbo = D.karboPos.size();
+                if (karbo > min_karbo) {
                     out = D.ClusterID;
-                    max_dist = dist;
+                    min_karbo = karbo;
                 }
             }
             midTargets.remove(Integer.valueOf(out));
@@ -180,6 +182,39 @@ public class ResourceManager {
     // Add a target cluster
     public void addTarget(int ID) {
         targets.add(ID);
+    }
+
+    // Sort enemyClusters by distance from point
+    public void sortEnemy(Point P) {
+        for (int i = 0; i < enemyClusters.size(); i++) {
+            int smallest = i;
+            int max_dist = Integer.MAX_VALUE;
+            for (int j = i; j < enemyClusters.size(); j++) {
+                Cluster D = resourceList.get(enemyClusters.get(j));
+                int dist = (P.x - D.locX)*(P.x - D.locX) + (P.y - D.locY)*(P.y - D.locY);
+                if (dist < max_dist) {
+                    max_dist = dist;
+                    smallest = j;
+                }
+            }
+            int temp = enemyClusters.get(smallest);
+            enemyClusters.set(smallest, enemyClusters.get(i));
+            enemyClusters.set(i, temp);
+        }
+    }
+
+    // Relocate Mid Cluster home to nearer side
+    public void relocateMidClusters(Management manager) {
+        for (int i: midClusters) {
+            Cluster D = resourceList.get(i);
+            Point a, b;
+            a = new Point(D.locX, D.locY);
+            b = manager.oppPoint(a.x, a.y);
+            if (manager.me_location.dist(a) > manager.me_location.dist(b)) {
+                D.locX = b.x;
+                D.locY = b.y;
+            }
+        }
     }
 
 }

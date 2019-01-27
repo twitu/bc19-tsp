@@ -22,6 +22,13 @@ public class MyRobot extends BCAbstractRobot {
         new Point(-1, 1)
     };
 
+    public static Point[] non_diag_directions = {
+        new Point(0, 1),
+        new Point(1, 0),
+        new Point(0, -1),
+        new Point(-1, 0)
+    };
+
     // r^2 = 4
     public static Point[] four_directions = {
         new Point(0, 1),
@@ -112,7 +119,7 @@ public class MyRobot extends BCAbstractRobot {
             combat_manager = new CombatManager(this);
             resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
             refdata = new RefData();
-            resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry);
+            resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry, manager);
 
             // for military units
             if (me.unit == SPECS.PROPHET || me.unit == SPECS.PREACHER || me.unit == SPECS.CRUSADER) {

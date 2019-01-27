@@ -53,29 +53,11 @@ public class Prophet {
         this.refdata = robo.refdata;
         this.red_alert = false;
         this.attack_point = null;
-        
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
         refdata = new RefData();
         mark = -1;
-        robo.log("Prophet: Map data acquired in state " + Integer.toString(this.state));
-        if (state == 3) {
-            relocateMidcluster();
-        }
-    }
-
-
-    // Relocate Mid Cluster home to nearer side
-    public void relocateMidcluster() {
-        Point a, b;
-        Cluster home_cluster = resData.resourceList.get(resData.getID(target_loc.x, target_loc.y));
-        a = new Point(home_cluster.locX, home_cluster.locY);
-        b = manager.oppPoint(a.x, a.y);
-        if (manager.me_location.dist(a) > manager.me_location.dist(b)) {
-            home_cluster.locX = b.x;
-            home_cluster.locY = b.y;
-        }
     }
 
     // Bot AI
@@ -85,7 +67,7 @@ public class Prophet {
         manager.updateData();
 
         // Listen on comms for emergency signals from castle
-        if (state <= 10) {
+        if (state == 10) {
             if (!red_alert) {
                 for (Robot bot: manager.vis_robots) {
                     if (bot.signal%16 == 10) { // make more complex
@@ -110,12 +92,9 @@ public class Prophet {
         }
         
         // Check for currently marked target
-        for (Robot bot: manager.vis_robots) {
-            if (!robo.isVisible(bot)) continue;
-            int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
-            if ((bot.id == mark) && dist<=64 && dist >= 16) {
-                return robo.attack(bot.x - me.x, bot.y - me.y);
-            }
+        Point marked = combat_manager.markedTarget(mark, me);
+        if (marked != null) {
+            return robo.attack(marked.x - me.x, marked.y - me.y);
         }
 
         // Marked target not in range? Listen to broadcast for nearby marks
@@ -128,29 +107,33 @@ public class Prophet {
         }
 
         // Check for newly marked target
-        for (Robot bot: manager.vis_robots) {
-            if (!robo.isVisible(bot)) continue;
-            int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
-            if ((bot.id == mark) && dist<=64 && dist >= 16) {
-                return robo.attack(bot.x - me.x, bot.y - me.y);
-            }
+        marked = combat_manager.markedTarget(mark, me);
+        if (marked != null) {
+            return robo.attack(marked.x - me.x, marked.y - me.y);
         }
-        
-        // Check for enemy bots and attack and mark if enemy in range
-        Robot closest = null;
-        int max_dist = Integer.MAX_VALUE;
-        for (Robot bot: manager.vis_robots) {
-            if (!robo.isVisible(bot)) continue;
-            int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
-            if (bot.team != me.team && refdata.inAttackRange(bot, me) && (dist >= 16) && (dist < max_dist)) {
-                    max_dist = dist;
-                    closest = bot;
+
+        // if lone wolf try to find company
+        // else mark and attack
+        int adj_team_count = manager.adjacentTeamCount();
+        if (adj_team_count < 2) {
+            Robot danger = combat_manager.closestEnemyToDefend(manager.me_location);
+            if (danger != null) {
+                // if (danger.unit == robo.SPECS.CASTLE) {
+                //     // handle differently
+                // }
+                Point next = combat_manager.findNextSafePoint(me, danger, MyRobot.four_directions, true); // finding closest safe point
+                if (next != null) {
+                    return robo.move(next.x - me.x, next.y - me.y);
+                }
             }
-        }
-        if (closest != null) {
-            mark = closest.id;
-            robo.signal(radio.prophetMark(mark), 4);
-            return robo.attack(closest.x - me.x, closest.y - me.y);
+        } else {
+            // Check for enemy bots and attack and mark if enemy in range
+            Robot closest = combat_manager.closestEnemyToAttack(manager.me_location);
+            if (closest != null) {
+                mark = closest.id;
+                robo.signal(radio.prophetMark(mark), 4);
+                return robo.attack(closest.x - me.x, closest.y - me.y);
+            }
         }
 
         if(state == 1){
@@ -166,10 +149,12 @@ public class Prophet {
         if (state == 3) {
             // move towards target location
             Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, true, true, target_loc);
-            // robo.log("found my target loc moving there :" + Integer.toString(next.y) +", " + Integer.toString(next.x));
             if (next.equals(target_loc)) {
+                next = manager.findEmptyNextAdj(target_loc, manager.me_location, MyRobot.four_directions, true);
                 state = 5;
-            } else {
+            }
+
+            if (next != null) {
                 return robo.move(next.x - me.x, next.y - me.y);
             }
         }
@@ -187,36 +172,26 @@ public class Prophet {
                     state = 5;
                 }
                 Point next = combat_manager.stepToGuardPoint(guard_loc, true, MyRobot.adj_directions);
-                robo.log("Next move to guard point x" + Integer.toString(next.x) + " y " + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
             }
         }
 
         if(state == 0){
 
+            boolean isolated = true;
 
-            // Check for enemy bots and attack if enemy in range
-            closest = null;
-            max_dist = Integer.MAX_VALUE;
-            for (Robot bot: manager.vis_robots) {
-                if(!robo.isVisible(bot)) continue;
-                int dist = (me.x - bot.x)*(me.x - bot.x) + (me.y - bot.y)*(me.y - bot.y);
-                if (dist < max_dist) {
-                    max_dist = dist;
-                    if(bot.team != me.team && refdata.inAttackRange(bot, me)){
-                    closest = bot;
+            if((me.y-me.x)%2==1){
+                //snap if adjacent else maintain checkered anfd move otut
+                for(Point p : MyRobot.non_diag_directions){
+                    if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
+                    if(manager.passable_map[me.y + p.y][me.x + p.x] && !manager.fuel_map[me.y + p.y][me.x + p.x] && !manager.karbo_map[me.y + p.y][me.x + p.x] && manager.vis_robot_map[me.y + p.y][me.x + p.x] == 0){
+                        //if empty tile
+                        return robo.move(p.x,p.y);
                     }
                 }
             }
-            if (closest != null) {
-                return robo.attack(closest.x - me.x, closest.y - me.y);
-            }
 
 
-
-
-
-            boolean isolated = true;
             for(Point p : MyRobot.adj_directions){
                 if(manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
                     isolated = false;
@@ -230,7 +205,20 @@ public class Prophet {
                 //lattice
                 // determine max x or y reachable
                 //do not move below lim
+                if((me.x - me.y)%2==1 && me.turn%5 == 0){
+                    for(Point p : MyRobot.diag_directions){
+                        if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
+                        if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                            continue;
+                        }if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > home_base.dist(new Point(me.x,me.y)) ){
+                            //if moving towards enemy
+                            return robo.move(p.x,p.y);
+                        }
+                    }
+                }
+
                 for(Point p : MyRobot.diag_directions){
+                    if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
                     if(prev.equals(new Point(p.x + me.x , p.y + me.y) ) ) {
                         prev = home_base;
                         continue;
@@ -248,17 +236,18 @@ public class Prophet {
                 }
                 if(me.turn%10 == 0){
                     for(Point p : MyRobot.diag_directions){
+                        if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
                         if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
                             continue;
                         }
-                        if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
+                        if((home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius) ){
                             //do not move further from lattice radius
                             continue;
                         }
                         if(manager.vsymmetry){
                             if(home_base.y > manager.map_length/2){
                                 if((p.y + me.y) > home_base.y){
-                                    
+                                    continue;
                                 }
                             }
                         }
@@ -272,6 +261,7 @@ public class Prophet {
 
             if(me.karbonite != 0 || me.karbonite != 0){
                 for(Point p : MyRobot.diag_directions){
+                    if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
                     if(manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
                         if( home_base.dist(manager.me_location) > home_base.dist(new Point(me.x+p.x,me.y+p.y)) ){
                             return robo.give(p.x,p.y,me.karbonite,me.fuel);

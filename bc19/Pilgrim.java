@@ -21,7 +21,7 @@ public class Pilgrim {
 
     // Private variables
     public static int[] emergencyFund = {30, 20};
-    int status, cluster_id;
+    int state, cluster_id;
     Point home, mineLoc;
     Cluster home_cluster;
     boolean combat,emergency;
@@ -41,9 +41,8 @@ public class Pilgrim {
         // Process and store depot clusters
         combat = false;
         emergency = false;
-        robo.log("Pilgrim: Map data acquired");         
 
-        // Look for creator building and initialize status
+        // Look for creator building and initialize state
         for (Point p: MyRobot.adj_directions) {
             if (manager.getRobotIdMap(me.x + p.x, me.y + p.y) > 0) {
                 Robot bot = robo.getRobot(manager.getRobotIdMap(me.x + p.x, me.y + p.y));
@@ -54,7 +53,7 @@ public class Pilgrim {
                             mineLoc = new Point(-1, -1);
                             mineLoc.x = ch_sig/1024;
                             mineLoc.y = (ch_sig % 1024)/16;
-                            status = 0;//miner
+                            state = 0;//miner
                             home = new Point(bot.x, bot.y);
                             break;
                         }
@@ -65,18 +64,19 @@ public class Pilgrim {
                             mineLoc = new Point(-1, -1);
                             mineLoc.x = bot.signal/1024;
                             mineLoc.y = (bot.signal % 1024)/16;
-                            home = new Point(bot.x, bot.y);
-                            status = 0;
+                            Cluster D = resData.resourceList.get(resData.getID(mineLoc.x,mineLoc.y));
+                            if(D.checkRange(bot.x,bot.y)){
+                                home = new Point(bot.x, bot.y);
+                            }else{
+                                home = new Point(D.locX, D.locY);
+                            }
+                            state = 0;
                             break;
                         } else if ((bot.signal % 16 == 0) || (bot.signal % 16 == 1)) {
                             cluster_id = bot.signal/16;
                             home_cluster = resData.resourceList.get(cluster_id);
                             home = resData.getLocation(cluster_id);
-                            status = 1;//go to cluster
-                            if ((manager.vsymmetry && home_cluster.meanY == manager.map_length/2)
-                             || (!manager.vsymmetry && home_cluster.meanX == manager.map_length/2)) {
-                                relocateMidcluster();
-                            }
+                            state = 1;//go to cluster
                             break;
                         }
                     }
@@ -86,25 +86,14 @@ public class Pilgrim {
 
     }
 
-    // Relocate Mid Cluster home to nearer side
-    public void relocateMidcluster() {
-        Point a, b;
-        a = new Point(home_cluster.locX, home_cluster.locY);
-        b = manager.oppPoint(a.x, a.y);
-        if (manager.me_location.dist(a) > manager.me_location.dist(b)) {
-            home_cluster.locX = b.x;
-            home_cluster.locY = b.y;
-        }
-    }
-
     // Bot AI
     public Action AI() {
         
         this.me = robo.me;
         manager.updateData();
         
-        // Leader status. Go to cluster and build a base
-        if(status == 1) {
+        // Leader state. Go to cluster and build a base
+        if(state == 1) {
             Point P = resData.getLocation(cluster_id);
             
             // Am I adjacent to the target?
@@ -125,10 +114,10 @@ public class Pilgrim {
                         }
                     }
                     
-                    // Build church, inform nearest depot and set worker status
+                    // Build church, inform nearest depot and set worker state
                     robo.signal(radio.assignDepot(mineLoc),2);
                     home = P;
-                    status = 0;
+                    state = 0;
                     return robo.buildUnit(robo.SPECS.CHURCH, P.x - me.x, P.y - me.y);
                 
                 // Need more resources
@@ -143,9 +132,8 @@ public class Pilgrim {
                         }
                     }
 
-                    robo.log("Need more resources - mining stead");
                     home = P;
-                    status = 0;
+                    state = 0;
                     Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, true, mineLoc);
                     if(next == null){
                         return null;
@@ -157,35 +145,40 @@ public class Pilgrim {
             } else {                          
                 Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, true,  P);
                 if ((next.x == P.x) &&(next.y == P.y)){
-                    next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions);
+                    next = manager.findEmptyNextAdj(next, manager.me_location, MyRobot.four_directions, false);
                 }
                 return robo.move(next.x - me.x, next.y - me.y);
             }
 
-        // Worker status. Resource collector
-        } else if (status == 0) {
+        // Worker state. Resource collector
+        } else if (state == 0) {
             
             // Enemy Surveilance
-            boolean noCombat = true;
-            for (Robot bot: manager.vis_robots) {
-                if (!robo.isVisible(bot)) {
-                    continue;
-                }
-                if (bot.team != me.team) {
-                    noCombat = false;
-                    if (!combat) {
-                        combat = true;
-                        robo.signal(radio.emergency(new Point(bot.x, bot.y)), Cluster.range);
+            ArrayList<Robot> enemies = combat_manager.visibleEnemies(me);
+            ArrayList<Robot> track = combat_manager.unitsInRange(home, 196, enemies);
+            if (track.size() > 0) {
+                // if preachers around it send distress signal
+                ArrayList<Robot> troops;
+                ArrayList<Robot> allies;
+                allies = combat_manager.visibleAllyList(me);
+                // check existing panther alerts
+                ArrayList<Robot> radios = combat_manager.checkRadioAllies(allies, 12);
+                if (radios.size() == 0) {
+                    allies = combat_manager.unitsInRange(manager.me_location, 9, allies);
+                    troops = combat_manager.checkVisibleUnit(robo.SPECS.PREACHER, allies);
+                    troops.addAll(combat_manager.checkVisibleUnit(robo.SPECS.CRUSADER, allies));
+                    if (troops.size() > 2) {
+                        Robot enemy = combat_manager.closestEnemy(me, enemies);
+                        robo.signal(radio.pantherStrike(new Point(enemy.x, enemy.y)), 9);
                     }
                 }
-                if ((bot.team == me.team) && (bot.signal % 16 == 5)) {
-                    noCombat = false;
+
+                ArrayList<Robot> danger = combat_manager.defendFromEnemies(me, enemies);
+                if (danger.size() == 0) {
                     combat = true;
-                    break;
+                    Point safe_step = combat_manager.nextSafeStep(manager.me, enemies, MyRobot.four_directions, true);
+                    return robo.move(safe_step.x - me.x, safe_step.y - me.y);
                 }
-            }
-            if (noCombat) {
-                combat = false;
             }
 
             if((robo.karbonite < emergencyFund[0] || robo.fuel < emergencyFund[1]) && me.turn < 100){
@@ -210,7 +203,7 @@ public class Pilgrim {
                 // Not adjacent? Go home
                 Point next = manager.findNextStep(me.x, me.y, MyRobot.four_directions, false, true,  home);
                 if(next.x == home.x && next.y == home.y){
-                    next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions);
+                    next = manager.findEmptyNextAdj(home, manager.me_location, MyRobot.four_directions, false);
                     if(next == null){//maybe starvation
                         return null;
                     }
@@ -222,6 +215,7 @@ public class Pilgrim {
 
                 // On a depot? Mine then
                 if(me.x == mineLoc.x && me.y == mineLoc.y){
+                    // Perform surveillance and send messages
                     return robo.mine();
                 }
 

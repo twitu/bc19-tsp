@@ -37,11 +37,15 @@ public class Management {
     public boolean[][] karbo_map;
     public int map_length;
     public boolean vsymmetry;
+    public int nitro_turn, nitro_fuel;
 
     // Current turn data (update every turn)
     public int[][] vis_robot_map;
     public Robot[] vis_robots;
     public Point me_location;
+
+    // Private Variables
+    int danger_cluster_no, danger_dist;
 
     public Management(MyRobot robo) {
         this.robo = robo;
@@ -51,7 +55,10 @@ public class Management {
         karbo_map = robo.getKarboniteMap();
         map_length = passable_map.length;
         vsymmetry = mapVsym();
+        danger_cluster_no = 3;
+        danger_dist = 15;
         updateData();
+        setNitro();
     }
 
     // Determine map symmetry
@@ -225,17 +232,35 @@ public class Management {
     }
 
     // Find point adjacent to destination that is within given set of moves
-    public Point findEmptyNextAdj(Point dest, Point src, Point[] moves) {
+    public Point findEmptyNextAdj(Point dest, Point src, Point[] moves, boolean avoidmines) {
         for (Point p: moves) {
             Point temp = src.add(p);
-            if (!checkBounds(temp.x, temp.y)) {
-                continue;
-            }
+            if (!checkBounds(temp.x, temp.y)) continue;
+            if (avoidmines && (fuel_map[temp.y][temp.x] || karbo_map[temp.y][temp.x])) continue;
             if (isAdj(temp, dest) && passable_map[temp.y][temp.x] && vis_robot_map[temp.y][temp.x] <= 0) {
                 return temp;
             }
         }
         return null;
+    }
+
+    public Point findClosestEmptyAdjacent(Point dest, Point[] moves, boolean avoidmines) {
+        Point chosen = null, next = null;
+        int min_dist = Integer.MAX_VALUE, dist = 0;
+        for (Point p: moves) {
+            next = p.add(me_location);
+            if (!checkBounds(next.x, next.y)) continue;
+            if (avoidmines && (fuel_map[next.y][next.x] || karbo_map[next.y][next.x])) continue;
+            if (passable_map[next.y][next.x] && vis_robot_map[next.y][next.x] <= 0) {
+                dist = next.dist(dest);
+                if (dist < min_dist) {
+                    chosen = next;
+                    dist = min_dist;
+                }
+            }
+        }
+
+        return chosen;
     }
 
     // Check if sufficient resources are available to build given unit
@@ -365,37 +390,22 @@ public class Management {
     boolean getDangerPriority(){
         // strip for 1/3
         //calculate distance from mid and set priority
-        if(vsymmetry){
-            if(me.y > map_length/2){
-                if(me.y > (2*map_length/3)){
-                    return false;
-                }else{
-                    return true;
-                }
-            }else{
-                if(me.y < map_length/3){
-                    return false;
-                }else{
-                    return true;
-                }
-
-            }
-        }else{
-            if(me.x > map_length/2){
-                if(me.x > (2*map_length/3)){
-                    return false;
-                }else{
-                    return true;
-                }
-            }else{
-                if(me.x < map_length/3){
-                    return false;
-                }else{
-                    return true;
-                }
-
+        robo.resData.sortEnemy(me_location);
+        if (robo.resData.enemyClusters.size() < danger_cluster_no) {
+            danger_cluster_no = robo.resData.enemyClusters.size();
+        }
+        int max_moves = Integer.MAX_VALUE;
+        for (int i = 0; i < danger_cluster_no; i++) {
+            Cluster D = robo.resData.resourceList.get(robo.resData.enemyClusters.get(i));
+            int moves = numberOfMoves(me_location, new Point(D.locX, D.locY), MyRobot.four_directions);
+            if (moves < max_moves) {
+                max_moves = moves;
             }
         }
+        if (max_moves > danger_dist) {
+            return false;
+        }
+        return true;
     }
 
     public Point coulombRepel() {
@@ -427,5 +437,61 @@ public class Management {
         }
 
         return dest;
+    }
+
+    public int adjacentTeamCount() {
+        int count = 0;
+        for (Point adj: MyRobot.adj_directions) {
+            int bot_id = getRobotIdMap(adj.x + me.x, adj.y + me.y);
+            if (bot_id > 0) {
+                Robot bot = robo.getRobot(bot_id);
+                if (bot.team == me.team) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    // call only in mobile units
+    public Point chainGive() {
+        int current_dist = me_location.dist(robo.home_base);
+        Point best = null;
+        for (Point adj: MyRobot.adj_directions) {
+            Point next = adj.add(me_location);
+            if (!checkBounds(next.x, next.y)) continue;
+            int bot_id = getRobotIdMap(next.x, next.y);
+            if (next.dist(robo.home_base) < current_dist && bot_id > 0) {
+                Robot bot = robo.getRobot(bot_id);
+                if (bot.unit == robo.SPECS.CASTLE) {
+                    best = next;
+                    break;
+                } else {
+                    current_dist = next.dist(robo.home_base);
+                    best = next;
+                }
+            }
+        }
+
+        return best;
+    }
+
+    // Calculate health rush initiation turn
+    public void setNitro() {
+        int passable_squares = 0;
+        for (int i = 0; i < map_length; i++) {
+            for (int j = 0; j < map_length; j++) {
+                if (passable_map[i][j]) {
+                    passable_squares++;
+                }
+            }
+        }
+        passable_squares = passable_squares/4;
+        nitro_turn = 1000 - passable_squares/2;
+        if (nitro_turn < 800) {
+            nitro_turn = 800;
+        }          
+        nitro_fuel = 2500;
     }
 }

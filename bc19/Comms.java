@@ -78,8 +78,10 @@ public class Comms {
         return base.x*1024 + base.y*16 + 11;
     }
 
-
-
+    // LSB code: 12. Preacher rush to target location
+    public int pantherStrike(Point target) {
+        return target.x*1024 + target.y*16 + 12;
+    }
 
 
     ///*** Communication decoder functions ***///
@@ -103,6 +105,11 @@ public class Comms {
 
     // Decode LSB code: 6. Base under attack
     public Point decodeAssignGuard(int signal){
+        return new Point(signal/1024, (signal % 1024)/16);
+    }
+
+    // Decode LSB code: 12. Preacher alert
+    public Point decodePantherStrike(int signal){
         return new Point(signal/1024, (signal % 1024)/16);
     }
 
