@@ -155,30 +155,14 @@ public class Pilgrim {
             
             // Enemy Surveilance
             ArrayList<Robot> enemies = combat_manager.visibleEnemies(me);
-            ArrayList<Robot> track = combat_manager.unitsInRange(home, 196, enemies);
-            if (track.size() > 0) {
-                // if preachers around it send distress signal
-                ArrayList<Robot> troops;
-                ArrayList<Robot> allies;
-                allies = combat_manager.visibleAllyList(me);
-                // check existing panther alerts
-                ArrayList<Robot> radios = combat_manager.checkRadioAllies(allies, 12);
-                if (radios.size() == 0) {
-                    allies = combat_manager.unitsInRange(manager.me_location, 9, allies);
-                    troops = combat_manager.checkVisibleUnit(robo.SPECS.PREACHER, allies);
-                    troops.addAll(combat_manager.checkVisibleUnit(robo.SPECS.CRUSADER, allies));
-                    if (troops.size() > 2) {
-                        Robot enemy = combat_manager.closestEnemy(me, enemies);
-                        robo.signal(radio.pantherStrike(new Point(enemy.x, enemy.y)), 9);
-                    }
-                }
+            Point strike = combat_manager.pantherStrike(3, 16, 2);
 
-                ArrayList<Robot> danger = combat_manager.defendFromEnemies(me, enemies);
-                if (danger.size() == 0) {
-                    combat = true;
-                    Point safe_step = combat_manager.nextSafeStep(manager.me, enemies, MyRobot.four_directions, true);
-                    return robo.move(safe_step.x - me.x, safe_step.y - me.y);
-                }
+            // escape from attacks
+            ArrayList<Robot> danger = combat_manager.defendFromEnemies(me, enemies);
+            if (danger.size() > 0) {
+                combat = true;
+                Point safe_step = combat_manager.nextSafeStep(manager.me, enemies, MyRobot.four_directions, true);
+                return robo.move(safe_step.x - me.x, safe_step.y - me.y);
             }
 
             if((robo.karbonite < emergencyFund[0] || robo.fuel < emergencyFund[1]) && me.turn < 100){
@@ -186,7 +170,7 @@ public class Pilgrim {
             }
             
             // Am I in combat mode or carrying full capacity?
-            if((me.karbonite == 20 || me.fuel == 100) || (combat && (me.karbonite != 0 || me.fuel != 0)) ){
+            if((me.karbonite == 20 || me.fuel == 100) || (combat && (me.karbonite != 0 || me.fuel != 0)) || (emergency && (me.karbonite > 10 || me.fuel > 50) )){
                 
                 // Deposit resources if adjacent to home
                 if(manager.isAdj(new Point(me.x,me.y),home)){

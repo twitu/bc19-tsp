@@ -16,7 +16,7 @@ public class Prophet {
     RefData refdata;
     int mark;
     int state;
-    int lattice_radius = 50;
+    int lattice_radius = 36;
     Point home_castle;
     Point enemy_castle;
     Point guard_loc;
@@ -27,6 +27,9 @@ public class Prophet {
     Point attack_point;
     boolean red_alert;
     boolean min;
+    boolean yellow, red;
+    int attack_base;
+    Point attack_enemy_castle;
 
     // Initialization
     public Prophet(MyRobot robo) {
@@ -53,6 +56,9 @@ public class Prophet {
         this.refdata = robo.refdata;
         this.red_alert = false;
         this.attack_point = null;
+        this.yellow = false;
+        this.red = false;
+
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map,manager.fuel_map, manager.karbo_map);
@@ -66,28 +72,36 @@ public class Prophet {
         this.me = robo.me;        
         manager.updateData();
 
-        // Listen on comms for emergency signals from castle
-        if (state == 10) {
-            if (!red_alert) {
-                for (Robot bot: manager.vis_robots) {
-                    if (bot.signal%16 == 10) { // make more complex
-                        if (attack_point.equals(home_base)) continue;
-                        red_alert = true;
-                        attack_point = new Point(bot.signal/1024, bot.signal%1024/16);
-                        break;
-                    }
+        // listen for yellow
+        if (!yellow) {
+            for (Robot bot: manager.vis_robots) {
+                if (!robo.isRadioing(bot)) continue;
+                int id = radio.decodeYellowAlert(bot.signal);
+                if (id > 0 && id-64 < 50) {
+                    yellow = true;
+                    attack_base = id - 64;
+                    break;
                 }
-            } else {
-                for (Robot bot: manager.vis_robots) {
-                    if (bot.signal%16 == 11) {
-                        Point possible_attack = new Point(bot.signal/1024, bot.signal/1024%16);
-                        if (possible_attack.equals(attack_point)) {
-                            state = 11;
-                            red_alert = false;
-                            break;
-                        }
-                    }
+            }
+        } else {
+            for (Robot bot: manager.vis_robots) {
+                if (!robo.isRadioing(bot)) continue;
+                int id = radio.decodeRedAlert(bot.signal);
+                if (id > 0 && id-64 < 50 && attack_base == id - 64) {
+                    red = true;
+                    Cluster D = resData.resourceList.get(attack_base);
+                    attack_enemy_castle = manager.oppPoint(D.locX, D.locY);
+                    guard_loc_count = 0;
+                    break;
                 }
+            }
+        }
+
+        // listen for lattice
+        for (Robot bot: manager.vis_robots) {
+            if (bot.signal == 110) {
+                state = 0;
+                break;
             }
         }
         
@@ -131,9 +145,23 @@ public class Prophet {
             Robot closest = combat_manager.closestEnemyToAttack(manager.me_location);
             if (closest != null) {
                 mark = closest.id;
-                robo.signal(radio.prophetMark(mark), 4);
+                Point strike = combat_manager.pantherStrike(3, 16, 4);
+                if (strike != null) {
+                    robo.signal(radio.pantherStrike(strike), 16);
+                } else {
+                    robo.signal(radio.prophetMark(mark), 4);
+                }
                 return robo.attack(closest.x - me.x, closest.y - me.y);
             }
+        }
+
+        // mount attack on enemy castle
+        if (red) {
+            if (guard_loc_count == 0) {
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.adj_directions, false, true, attack_enemy_castle);
+                return robo.move(next.x - me.x, next.y - me.y);
+            }
+            return null;
         }
 
         if(state == 1){
@@ -192,7 +220,7 @@ public class Prophet {
             }
 
 
-            for(Point p : MyRobot.adj_directions){
+            for(Point p : MyRobot.diag_directions){
                 if(manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
                     isolated = false;
                     break;
@@ -205,12 +233,17 @@ public class Prophet {
                 //lattice
                 // determine max x or y reachable
                 //do not move below lim
-                if((me.x - me.y)%2==1 && me.turn%5 == 0){
+                if((me.x - me.y)%2==1 && me.turn%5==0){
                     for(Point p : MyRobot.diag_directions){
                         if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
                         if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
                             continue;
-                        }if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > home_base.dist(new Point(me.x,me.y)) ){
+                        }
+                        if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
+                            //do not move further from lattice radius
+                            continue;
+                        }
+                        if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > home_base.dist(new Point(me.x,me.y)) ){
                             //if moving towards enemy
                             return robo.move(p.x,p.y);
                         }
@@ -229,7 +262,7 @@ public class Prophet {
                     if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
                         //do not move further from lattice radius
                         continue;
-                    }if( towardsEnemy( me.x,me.y,me.x+p.x,me.y+p.y) ){
+                    }if( combat_manager.towardsEnemy( me.x,me.y,me.x+p.x,me.y+p.y) ){
                         //if moving towards enemy
                         return robo.move(p.x,p.y);
                     }
@@ -292,41 +325,6 @@ public class Prophet {
 
         // Nothing to do
         return null;
-    }
-
-    public boolean towardsEnemy(int x1,int y1,int x2,int y2){
-        //return true if 2 is closer to the enemy
-        if(manager.vsymmetry){
-            if(home_base.y > manager.map_length/2){
-                if(y2<y1){
-                    return true;
-                }else{
-                    return false;
-                }
-            }else{
-                if(y2>y1){
-                    return true;
-                }else{
-                    return false;
-                }
-            }
-        }else{
-            if(home_base.x > manager.map_length/2){
-                if(x2<x1){
-                    return true;
-                }else{
-                    return false;
-                }
-            }else{
-                if(x2>x1){
-                    return true;
-                }else{
-                    return false;
-                }
-            }
-
-        }
-
     }
 
 }

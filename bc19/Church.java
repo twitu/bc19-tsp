@@ -20,11 +20,11 @@ public class Church {
     Comms radio;
 
     // Private Variables
-    public static int[] emergencyFund = {50, 100};
+    public static int[] emergencyFund = {100, 125};
     LinkedList<Point> fuel_depots;
     LinkedList<Point> karb_depots;
     LinkedList<Point> dead_depots = new LinkedList<>();
-    boolean fuelCap, karbCap, combat,new_miner, danger_priority;
+    boolean fuelCap, karbCap, combat,new_miner, danger_priority, latticeTank,lattice_init;
     ArrayList<Integer> assigned_miners = new ArrayList<>();
     ArrayList<Point> assigned_depots = new ArrayList<>();
     int unit_no, state, node_no,ch_state;
@@ -45,14 +45,14 @@ public class Church {
         this.node_location = new ArrayList<>();
         this.refdata = robo.refdata;
         this.resData = robo.resData;
-        this.shield_size = 6;
+        this.shield_size = 8;
+        lattice_init = true;
         this.shield_priority_count = 2;
         this.danger_priority = manager.getDangerPriority();
         if(danger_priority){
             robo.log("high priority");
         }
         // Process and store depot clusters
-        robo.log("Church: Map data acquired");
 
         // Initialize church
         combat = false;
@@ -61,6 +61,7 @@ public class Church {
         node_no = 0;
         state = 0;
         ch_state =1;
+        latticeTank = true;
 
         // Record resource point locations
         Cluster D = resData.resourceList.get(resData.getID(me.x, me.y));
@@ -206,86 +207,94 @@ public class Church {
             }
         }
 
-        // if (danger_priority) {
-        //     int defence_count = 0;
-        //     for(Robot r : manager.vis_robots){
-        //         if (!robo.isVisible(r)) continue;
-        //         if(r.team==me.team && (r.unit==robo.SPECS.PREACHER || r.unit == robo.SPECS.PROPHET || r.unit == robo.SPECS.CRUSADER)){
-        //             defence_count++;
-        //         }
-        //     }
+        if (danger_priority) {
+            int defence_count = 0;
+            for(Robot r : manager.vis_robots){
+                if (!robo.isVisible(r)) continue;
+                if(r.team==me.team && (r.unit==robo.SPECS.PREACHER || r.unit == robo.SPECS.PROPHET || r.unit == robo.SPECS.CRUSADER)){
+                    defence_count++;
+                }
+            }
 
-        //     if (defence_count < shield_size) {
-        //         // robo.log("low on defense with shield units " + Integer.toString(defence_count));
-        //         low_defense = true;
-        //     }
+            ArrayList<Robot> enemies = combat_manager.visibleEnemies(manager.me);
+            if (enemies.size() > 3) {
+                Point strike = combat_manager.pantherStrike(3, 16, 4);
+                if (strike != null) {
+                    robo.signal(radio.pantherStrike(strike), 16);
+                }
+            }
 
-        //     if (low_defense && state != shield_priority_count) {
-        //         state++;
-        //         // make shield units until state is not in shield priority count
-        //         int unit_type = MyRobot.tiger_squad[unit_no];
-        //         Point emptyadj = manager.findEmptyAdj(me, false);
-        //         if(emptyadj == null){
-        //             return null;
-        //         }
-        //         unit_no = (++unit_no) % MyRobot.tiger_squad.length;
+            if (defence_count < shield_size) {
+                // robo.log("low on defense with shield units " + Integer.toString(defence_count));
+                low_defense = true;
+            }
 
-        //         // signal position
-        //         Point dest = node_location.get(node_no);
-        //         robo.signal(radio.assignGuard(dest), 2);
-        //         node_no = (++node_no) % node_location.size();
-        //         return robo.buildUnit(unit_type, emptyadj.x, emptyadj.y);
-        //     }
+            if (low_defense && state != shield_priority_count) {
+                state++;
+                // make shield units until state is not in shield priority count
+                int unit_type = MyRobot.tiger_squad[unit_no];
+                Point emptyadj = manager.findEmptyAdj(me, false);
+                if(emptyadj == null){
+                    return null;
+                }
+                unit_no = (++unit_no) % MyRobot.tiger_squad.length;
 
-        //     // reset state if one round of shield building is complete
-        //     if (state == shield_priority_count && low_defense) {
-        //         state = 0;
-        //     }
-        // } else {
-        //     // low priority produce units only if threatened
-        //     ArrayList<Robot> enemies = combat_manager.visibleEnemies(me);
-        //     ArrayList<Robot> allies = combat_manager.visibleAllyList(me);
-        //     int enemy_count = enemies.size();
-        //     int enemy_preachers = combat_manager.countVisibleUnit(robo.SPECS.PREACHER, enemies);
-        //     int preacher_count = combat_manager.countVisibleUnit(robo.SPECS.PREACHER, allies);
-        //     int pilgrim_count = combat_manager.countVisibleUnit(robo.SPECS.PILGRIM, enemies);
-        //     int crusaders = combat_manager.countVisibleUnit(robo.SPECS.CRUSADER, allies);
-        //     int prophets = combat_manager.countVisibleUnit(robo.SPECS.PROPHET, allies);
-        //     int unit = -1;
-        //     Point next = null;
-        //     if (enemies.size() > 0) {
-        //         Robot danger = combat_manager.closestEnemy(manager.me_location, enemies);
-        //         next = manager.findClosestEmptyAdjacent(new Point(danger.x, danger.y), MyRobot.adj_directions, false);
-        //         if (enemy_preachers > 0) {
-        //             if (preacher_count < enemy_preachers) { 
-        //                 unit = robo.SPECS.PREACHER;
-        //             }
-        //         } else {
-        //             if (pilgrim_count == enemy_count) {
-        //                 if (crusaders == 0) {
-        //                     unit = robo.SPECS.CRUSADER;
-        //                 } else {
-        //                     if (crusaders + prophets < (enemy_count + 1)/2) {
-        //                         if (crusaders < 2) {
-        //                             unit = robo.SPECS.CRUSADER;
-        //                         } else {
-        //                             unit = robo.SPECS.PROPHET;
-        //                         }
-        //                     }
-        //                 }
-        //             }
-        //         }
+                // signal position
+                Point dest = node_location.get(node_no);
+                robo.signal(radio.assignGuard(dest), 2);
+                node_no = (++node_no) % node_location.size();
+                return robo.buildUnit(unit_type, emptyadj.x, emptyadj.y);
+            }
 
-        //         if (next != null) {
-        //             robo.signal(radio.pantherStrike(new Point(danger.x, danger.y)), 4);
-        //             return robo.buildUnit(unit, next.x - me.x, next.y - me.y);
-        //         }
-        //     }
-        // }
+            // reset state if one round of shield building is complete
+            if (state == shield_priority_count && low_defense) {
+                state = 0;
+            }
+        } else {
+            // low priority produce units only if threatened
+            ArrayList<Robot> enemies = combat_manager.visibleEnemies(me);
+            ArrayList<Robot> allies = combat_manager.visibleAllyList(me);
+            int enemy_count = enemies.size();
+            int enemy_preachers = combat_manager.countVisibleUnit(robo.SPECS.PREACHER, enemies);
+            int preacher_count = combat_manager.countVisibleUnit(robo.SPECS.PREACHER, allies);
+            int pilgrim_count = combat_manager.countVisibleUnit(robo.SPECS.PILGRIM, enemies);
+            int crusaders = combat_manager.countVisibleUnit(robo.SPECS.CRUSADER, allies);
+            int prophets = combat_manager.countVisibleUnit(robo.SPECS.PROPHET, allies);
+            int unit = -1;
+            Point next = null;
+            if (enemies.size() > 0) {
+                Robot danger = combat_manager.closestEnemy(manager.me_location, enemies);
+                next = manager.findClosestEmptyAdjacent(new Point(danger.x, danger.y), MyRobot.adj_directions, false);
+                if (enemy_preachers > 0) {
+                    if (preacher_count < enemy_preachers) { 
+                        unit = robo.SPECS.PREACHER;
+                    }
+                } else {
+                    if (pilgrim_count == enemy_count) {
+                        if (crusaders == 0) {
+                            unit = robo.SPECS.CRUSADER;
+                        } else {
+                            if (crusaders + prophets < (enemy_count + 1)/2) {
+                                if (crusaders < 2) {
+                                    unit = robo.SPECS.CRUSADER;
+                                } else {
+                                    unit = robo.SPECS.PROPHET;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (next != null) {
+                    robo.signal(radio.pantherStrike(new Point(danger.x, danger.y)), 4);
+                    return robo.buildUnit(unit, next.x - me.x, next.y - me.y);
+                }
+            }
+        }
 
         if(ch_state == 1 && manager.buildable(robo.SPECS.PILGRIM)){// mine self karb depots
 
-            Point p = manager.findEmptyAdj(me,true);
+            Point p = manager.findEmptyAdj(me,false);
             nextP = karb_depots.pollFirst();
             if(karb_depots.size()==0){
                 ch_state=2;
@@ -295,26 +304,30 @@ public class Church {
             robo.signal(radio.assignDepot(nextP), 2);
             assigned_depots.add(nextP);
             new_miner = true;
+            if(p == null) return null;
             return robo.buildUnit(robo.SPECS.PILGRIM, p.x, p.y);
         }
 
+        
 
-        if(ch_state == 2 && manager.buildable(robo.SPECS.PILGRIM)){// mine self fuel depots
+        if(ch_state == 2 && manager.buildable(robo.SPECS.PILGRIM)){// mine self fuel depots        
+        
             nextP = fuel_depots.pollFirst();                                        
             if(fuel_depots.size()==0){
-                ch_state = 3;
+                ch_state = 5;
             }
         
-            Point p = manager.findEmptyAdj(me,true);
+            Point p = manager.findEmptyAdj(me,false);
             // Send the broadcast and build the unit
             robo.signal(radio.assignDepot(nextP), 2);
             assigned_depots.add(nextP);
             new_miner = true;
-            
+            if(p == null) return null;
             return robo.buildUnit(robo.SPECS.PILGRIM, p.x, p.y);
         }
 
-        if ((ch_state == 3 || ch_state == 5 || ch_state == 6) && dead_depots.size()!=0 ){
+        if ((ch_state == 5 || ch_state == 6) && dead_depots.size()!=0 ){
+            
             //reallocate dead depots                                   
             if(manager.buildable(robo.SPECS.PILGRIM)){
                 nextP = dead_depots.pollFirst();
@@ -343,32 +356,56 @@ public class Church {
         }
 
 
-        //Prophet Lattice
-        if (ch_state == 5) {
-            if((robo.fuel > emergencyFund[1] && robo.karbonite > emergencyFund[0] ) || danger_priority){
-                return null;
+        if ((state == 5 || state==6) && me.turn > 100) {
+            if(lattice_init){
+                lattice_init = false;
+                robo.signal(radio.snapGrid(),100);
             }
-            Integer proph_count = 0;
-            for(Robot r:manager.vis_robots){
-                if(!robo.isVisible(r)) continue;
-                if(r.team == me.team && r.unit == robo.SPECS.PROPHET){
-                    proph_count ++;
-                }
-            }
-
-            if(proph_count < 25){
-                Point emptyadj;
-                for(Point p:MyRobot.adj_directions){
-                    if( ((p.y + me.y) - (p.x + me.x)) %2 == 0 ){//even chequered
-                        if(manager.getRobotIdMap(me.x+p.x,me.y+p.y) !=0 || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x]){
-                            continue;
-                        }
-                        emptyadj = p;
-                        break;
+            if((robo.fuel > emergencyFund[1] && robo.karbonite > emergencyFund[0] ) || (danger_priority &&  robo.karbonite> 75 && robo.fuel >250)){
+                Integer proph_count = 0, preach_count = 0;
+                for(Robot r:manager.vis_robots){
+                    if(!robo.isVisible(r)) continue;
+                    if(r.team == me.team && r.unit == robo.SPECS.PROPHET){
+                        proph_count ++;
+                    } else if(r.team == me.team && (r.unit == robo.SPECS.PREACHER || r.unit == robo.SPECS.CRUSADER)){
+                        preach_count ++;
                     }
                 }
-                if(emptyadj != null && manager.buildable(robo.SPECS.PROPHET)){
-                    return robo.buildUnit(robo.SPECS.PROPHET,emptyadj.x,emptyadj.y);
+
+                if(proph_count < 25) {
+                    Point emptyadj;
+                    for(Point p:MyRobot.adj_directions){
+                        if(combat_manager.towardsEnemy(me.x,me.y,me.x+p.x,me.y+p.y)){
+                            if(manager.getRobotIdMap(me.x+p.x,me.y+p.y) !=0 || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x]){
+                                continue;
+                            }
+                            emptyadj = p;
+                            break;
+
+                        }
+                    }
+                    if(emptyadj != null && manager.buildable(robo.SPECS.PROPHET)){
+                        return robo.buildUnit(robo.SPECS.PROPHET,emptyadj.x,emptyadj.y);
+                    }
+                } else if(preach_count < 10) {
+                    Point emptyadj;
+                    for(Point p:MyRobot.adj_directions){
+                            if(manager.getRobotIdMap(me.x+p.x,me.y+p.y) !=0 || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x]){
+                                continue;
+                            }
+                            emptyadj = p;
+                            break;
+                    }
+                    if(emptyadj != null){
+                        robo.signal(radio.latticeDefend(), 2);
+                        if (latticeTank && manager.buildable(robo.SPECS.PREACHER)) {
+                            latticeTank = false;
+                            return robo.buildUnit(robo.SPECS.PREACHER,emptyadj.x,emptyadj.y);
+                        } else if (manager.buildable(robo.SPECS.CRUSADER)){
+                            latticeTank = true;
+                            return robo.buildUnit(robo.SPECS.CRUSADER,emptyadj.x,emptyadj.y);
+                        }
+                    }
                 }
             }
             
@@ -380,7 +417,7 @@ public class Church {
             Point emptyadj = manager.findEmptyAdj(me, false);
             if (emptyadj != null) {
                 // robo.log("ch_state 6");
-                // robo.signal(radio.crusaderDummy(), 2);
+                // robo.signal(radio.latticeDefend(), 2);
                 return robo.buildUnit(robo.SPECS.CRUSADER, emptyadj.x, emptyadj.y);                        
             }
         }

@@ -20,11 +20,14 @@ public class Crusader {
     boolean panther_mode;
     Point home_castle, enemy_castle,home_base;
     Point target_loc;
-    int state, initial_move_count;
+    int state, initial_move_count, lattice_radius;
     Point guard_loc, return_loc;
     int mark, guard_loc_count, fuelBuffer;
     ArrayList<Point> edge = new ArrayList<>();
     Point[] stack_directions = new Point[3];
+    boolean yellow, red;
+    Point attack_enemy_castle;
+    int attack_base;
 
     // Initialization
     public Crusader(MyRobot robo) {
@@ -45,12 +48,15 @@ public class Crusader {
         this.state = robo.state;
         this.refdata = robo.refdata;
         this.resData = robo.resData;
+        this.red = false;
+        this.yellow = false;
         fuelBuffer = 2500;
         panther_mode = false;
 
         // Process and store depot clusters
         resData = new ResourceManager(manager.passable_map, manager.fuel_map, manager.karbo_map);
         robo.log("Crusader: Initialization state " + Integer.toString(state));
+        lattice_radius = 25;
 
         // Analyze map symmetry and get default direction
         if (manager.vsymmetry) {
@@ -118,43 +124,47 @@ public class Crusader {
         manager.updateData();
         fuelBuffer += 15;
 
+        // listen for yellow
+        if (!yellow) {
+            for (Robot bot: manager.vis_robots) {
+                if (!robo.isRadioing(bot)) continue;
+                int id = radio.decodeYellowAlert(bot.signal);
+                if (id > 0 && id-64 < 50) {
+                    yellow = true;
+                    attack_base = id - 64;
+                    break;
+                }
+            }
+        } else {
+            for (Robot bot: manager.vis_robots) {
+                if (!robo.isRadioing(bot)) continue;
+                int id = radio.decodeRedAlert(bot.signal);
+                if (id > 0 && id-64 < 50 && attack_base == id - 64) {
+                    red = true;
+                    Cluster D = resData.resourceList.get(attack_base);
+                    attack_enemy_castle = manager.oppPoint(D.locX, D.locY);
+                    guard_loc_count = 0;
+                    break;
+                }
+            }
+        }
+
         // variables for iterators
         Robot closest;
+
+        // listen for lattice
+        for (Robot bot: manager.vis_robots) {
+            if (bot.signal == 110) {
+                state = 5;
+                break;
+            }
+        }
 
         // Check for enemy in attack range and attack
         for (Robot bot: manager.vis_robots) {
             if (!robo.isVisible(bot) || me.team == bot.team) continue;
             if (refdata.inAttackRange(bot, me)) return robo.attack(bot.x - me.x, bot.y - me.y);
         }
-
-        // // Listen to broadcast for nearby marks
-        // HashSet<Integer> marks = new HashSet<>();
-        // for (Robot bot: manager.vis_robots) {
-        //     if (!robo.isVisible(bot)) continue;
-        //     if (me.team == bot.team && bot.signal % 16 == 7) {
-        //         mark = (((bot.signal - 7) /16) + 1);
-        //         marks.add(mark);
-        //     }
-        // }
-
-        // // Check visible range for marked target
-        // closest = null;
-        // for (Robot bot: manager.vis_robots) {
-        //     if (!robo.isVisible(bot)) continue;
-        //     int max_dist = Integer.MAX_VALUE;
-        //     if (marks.contains(bot.id)) {
-        //         int dist = (bot.x - me.x)*(bot.x - me.x) + (bot.y - me.y)*(bot.y - me.y);
-        //         if (dist < max_dist) {
-        //             max_dist = dist;
-        //             closest = bot;
-        //         }
-        //     }
-        // }
-        
-        // if (closest != null) {
-        //     Point next = manager.findNextStep(me.x, me.y, MyRobot.nine_directions, false, true, new Point(closest.x, closest.y));
-        //     return robo.move(next.x - me.x, next.y - me.y);
-        // }
 
         // Check for enemies in range that me has to defend and escape
         closest = null;
@@ -181,6 +191,15 @@ public class Crusader {
             }
         }
 
+        // mount attack on enemy castle
+        if (red) {
+            if (guard_loc_count == 0) {
+                Point next = manager.findNextStep(me.x, me.y, MyRobot.adj_directions, false, true, attack_enemy_castle);
+                return robo.move(next.x - me.x, next.y - me.y);
+            }
+            return null;
+        }
+
         if(state == 1) {
             // while initial moves move towards enemy castle
             if (initial_move_count > 0) {
@@ -200,7 +219,7 @@ public class Crusader {
         if (state == 2) {
             // find number of steps to reach guard location
             robo.log("guard location is x" + Integer.toString(guard_loc.x) + " y " + Integer.toString(guard_loc.y));
-            guard_loc_count = manager.numberOfMoves(manager.me_location, guard_loc, MyRobot.adj_directions);
+            guard_loc_count = manager.numberOfMoves(manager.me_location, guard_loc, MyRobot.nine_directions);
             state = 4;
         }
 
@@ -213,10 +232,10 @@ public class Crusader {
                         panther_mode = false;
                         state = 2;
                     } else {
-                        state = 0;
+                        state = 5;
                     }
                 }
-                Point next = combat_manager.stepToGuardPoint(guard_loc, true, MyRobot.adj_directions);
+                Point next = combat_manager.stepToGuardPoint(guard_loc, true, MyRobot.nine_directions);
                 robo.log("Next move to guard point x" + Integer.toString(next.x) + " y " + Integer.toString(next.y));
                 return robo.move(next.x - me.x, next.y - me.y);
             }
@@ -287,38 +306,105 @@ public class Crusader {
         
         // populate the map
         if (state == 5) {
-            
-            // In castle range. Run away
-            boolean run = false;
-            for (Robot bot: manager.vis_robots) {
-                if (robo.isVisible(bot) && bot.unit <= 1)
-                {
-                    run = true;
+
+            boolean isolated = true;
+
+            if((me.y-me.x)%2==0){
+                //snap if adjacent else maintain checkered anfd move otut
+                for(Point p : MyRobot.non_diag_directions){
+                    if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
+                    if(manager.passable_map[me.y + p.y][me.x + p.x] && !manager.fuel_map[me.y + p.y][me.x + p.x] && !manager.karbo_map[me.y + p.y][me.x + p.x] && manager.vis_robot_map[me.y + p.y][me.x + p.x] == 0){
+                        //if empty tile
+                        return robo.move(p.x,p.y);
+                    }
                 }
             }
 
-            // Not in castle range? Go to hell if you have fuel
-            // if in castle range, run anyway.
-            int count = 0;
-            boolean strike = false;
-            for (Point p: MyRobot.adj_directions) {
-                if (!manager.checkBounds(me.x + p.x, me.y + p.y) || !manager.passable_map[me.y + p.y][me.x + p.x]
-                    || manager.vis_robot_map[me.y + p.y][me.x + p.x] > 0) {
-                    count++;
-                    strike = true;
-                } else if (strike) {
+
+            for(Point p : MyRobot.diag_directions){
+                if(manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                    isolated = false;
                     break;
                 }
             }
-            if (count >= 4) {
-                return null;
-            } else {
-                ArrayList<Point> edges = new ArrayList<>(edge);
-                Point next = manager.findNextStep(me.x, me.y, MyRobot.adj_directions, true, true, edges);
-                if ((robo.fuel > fuelBuffer || run) && next != null) {
-                    return robo.move(next.x - me.x, next.y - me.y);            
+
+            if(!isolated) {
+                //if not isolated can move
+                Point prev = new Point(home_base.x,home_base.y);
+                //lattice
+                // determine max x or y reachable
+                //do not move below lim
+                if((me.x - me.y)%2==0 && me.turn%5==0){
+                    for(Point p : MyRobot.diag_directions){
+                        if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
+                        if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                            continue;
+                        }
+                        if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
+                            //do not move further from lattice radius
+                            continue;
+                        }
+                        if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > home_base.dist(new Point(me.x,me.y)) ){
+                            //if moving towards enemy
+                            return robo.move(p.x,p.y);
+                        }
+                    }
+                }
+
+                for(Point p : MyRobot.diag_directions){
+                    if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
+                    if(prev.equals(new Point(p.x + me.x , p.y + me.y) ) ) {
+                        prev = home_base;
+                        continue;
+                    }
+                    if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                        continue;
+                    }
+                    if( home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius){
+                        //do not move further from lattice radius
+                        continue;
+                    }if( combat_manager.towardsEnemy( me.x,me.y,me.x+p.x,me.y+p.y) ){
+                        //if moving towards enemy
+                        return robo.move(p.x,p.y);
+                    }
+                }
+                if(me.turn%10 == 0){
+                    for(Point p : MyRobot.diag_directions){
+                        if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
+                        if(!manager.passable_map[me.y + p.y][me.x + p.x] || manager.fuel_map[me.y + p.y][me.x + p.x] || manager.karbo_map[me.y + p.y][me.x + p.x] || manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                            continue;
+                        }
+                        if((home_base.dist(new Point(me.x+p.x,me.y+p.y)) > lattice_radius) ){
+                            //do not move further from lattice radius
+                            continue;
+                        }
+                        if(manager.vsymmetry){
+                            if(home_base.y > manager.map_length/2){
+                                if((p.y + me.y) > home_base.y){
+                                    continue;
+                                }
+                            }
+                        }
+                        prev = manager.me_location;
+                        //spread at turn 3
+                        return robo.move(p.x,p.y);
+                    }
                 }
             }
+
+
+            if(me.karbonite != 0 || me.karbonite != 0){
+                for(Point p : MyRobot.diag_directions){
+                    if(!manager.checkBounds(me.x+p.x,me.y+p.y)) continue;
+                    if(manager.vis_robot_map[me.y + p.y][me.x + p.x] != 0){
+                        if( home_base.dist(manager.me_location) > home_base.dist(new Point(me.x+p.x,me.y+p.y)) ){
+                            return robo.give(p.x,p.y,me.karbonite,me.fuel);
+                        }
+                    }
+                }
+
+            }
+            
         }
 
         // Chain give resources if nothing else to do

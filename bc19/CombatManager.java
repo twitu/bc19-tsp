@@ -182,7 +182,7 @@ public class CombatManager {
     public ArrayList<Robot> visibleAllyList(Robot me) {
         ArrayList<Robot> allies = new ArrayList<>();
         for (Robot bot: manager.vis_robots) {
-            if (!robo.isVisible(bot) && bot.team != me.team) continue;
+            if (!robo.isVisible(bot) || bot.team != me.team) continue;
             allies.add(bot);
         }
         return allies;
@@ -302,6 +302,7 @@ public class CombatManager {
         return next;
     }
 
+
     public Point nextSafeStep(Robot me, ArrayList<Robot> enemies, Point[] directions, boolean closest) {
         Point chosen = null, next = null;
         int dist = 0;
@@ -352,6 +353,31 @@ public class CombatManager {
         return chosen;
     }
 
+    public Point pantherStrike(int allies_count, int ally_range, int enemy_count) {
+        // Enemy Surveilance
+        Point strike = null;
+        ArrayList<Robot> enemies = visibleEnemies(robo.me);
+        ArrayList<Robot> track = unitsInRange(robo.home_base, 196, enemies);
+        if (track.size() > enemy_count) {
+            // if preachers around it send distress signal
+            ArrayList<Robot> troops;
+            ArrayList<Robot> allies;
+            allies = visibleAllyList(robo.me);
+            // check existing panther alerts
+            ArrayList<Robot> radios = checkRadioAllies(allies, 12);
+            if (radios.size() == 0) {
+                allies = unitsInRange(manager.me_location, ally_range, allies);
+                troops = checkVisibleUnit(robo.SPECS.PREACHER, allies);
+                troops.addAll(checkVisibleUnit(robo.SPECS.CRUSADER, allies));
+                if (troops.size() > allies_count) {
+                    Robot enemy = closestEnemy(robo.me, enemies);
+                    strike = new Point(enemy.x, enemy.y);
+                }
+            }
+        }
+        return strike;
+    }
+
     public Point findNextSafePoint(Robot me, Robot other, Point[] directions, boolean closest) {
         Point chosen = null, next = null;
         int dist = 0;
@@ -384,5 +410,40 @@ public class CombatManager {
         }
 
         return chosen;
+    }
+
+
+
+    public boolean towardsEnemy(int x1,int y1,int x2,int y2){
+        //return true if 2 is closer to the enemy
+        if(manager.vsymmetry){
+            if(robo.home_base.y > manager.map_length/2){
+                if(y2<y1){
+                    return true;
+                }else{
+                    return false;
+                }
+            }else{
+                if(y2>y1){
+                    return true;
+                }else{
+                    return false;
+                }
+            }
+        }else{
+            if(robo.home_base.x > manager.map_length/2){
+                if(x2<x1){
+                    return true;
+                }else{
+                    return false;
+                }
+            }else{
+                if(x2>x1){
+                    return true;
+                }else{
+                    return false;
+                }
+            }
+        }
     }
 }

@@ -121,6 +121,10 @@ public class MyRobot extends BCAbstractRobot {
             refdata = new RefData();
             resData.pairClusters(me.x, me.y, manager.map_length, manager.vsymmetry, manager);
 
+            if(me.unit == SPECS.CASTLE || me.unit == SPECS.CHURCH){
+                home_base = new Point(me.x,me.y);
+            }
+
             // for military units
             if (me.unit == SPECS.PROPHET || me.unit == SPECS.PREACHER || me.unit == SPECS.CRUSADER) {
                 state = 0;

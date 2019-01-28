@@ -63,7 +63,7 @@ public class Comms {
     }
 
     // LSB code: 9. Tell crusader that you are a dummy(stack/lattice)
-    public int crusaderDummy() {
+    public int latticeDefend() {
         return 9;
     }
 
@@ -81,6 +81,21 @@ public class Comms {
     // LSB code: 12. Preacher rush to target location
     public int pantherStrike(Point target) {
         return target.x*1024 + target.y*16 + 12;
+    }
+
+    // LSB code 13
+    public int yellowAlert(int base_id) {
+        return 13*1024 + (base_id+64)*16 + 13;
+    }
+
+    //LSB code 15
+    public int redAlert(int base_id) {
+        return 15*1024 + (base_id+64)*16 +15;
+    }
+
+    // LSB code: 14. Preacher rush to target location
+    public int snapGrid() {
+        return 110;
     }
 
 
@@ -113,6 +128,20 @@ public class Comms {
         return new Point(signal/1024, (signal % 1024)/16);
     }
 
+    public int decodeYellowAlert(int signal) {
+        if (signal%1024 == 13 && signal/1024 == 13) {
+            return signal/1024%16;
+        }
+        return -1;
+    }
+
+    public int decodeRedAlert(int signal) {
+        if (signal%1024 == 13 && signal/1024 == 13) {
+            return signal/1024%16;
+        }
+        return -1;
+    }
+
     ///*** CastleTalk encoder functions ***///
     // LSB code: 3'b001. Own base id. I am here and okay
     public int baseID(int id) {
@@ -122,6 +151,10 @@ public class Comms {
     // LSB code: 3'b010. Assigned a pilgrim to this base.
     public int baseAssigned(int id) {
         return (id * 8 + 2);
+    }
+    // LSB code: 3'b011. Rush and strike.
+    public int death(int id) {
+        return (id * 8 + 3);
     }
 
 }

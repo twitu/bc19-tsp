@@ -489,8 +489,8 @@ public class Management {
         }
         passable_squares = passable_squares/4;
         nitro_turn = 1000 - passable_squares/2;
-        if (nitro_turn < 800) {
-            nitro_turn = 800;
+        if (nitro_turn < 700) {
+            nitro_turn = 700;
         }          
         nitro_fuel = 2500;
     }
